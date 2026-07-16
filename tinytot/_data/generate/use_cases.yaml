@@ -1,0 +1,60 @@
+# Use-case detection patterns for tinytot/generate.py
+#
+# Each entry maps a regex pattern to a handler key.
+# Patterns are tested in order — more specific patterns must come first.
+# The handler key must match a key in the _HANDLERS dict in generate.py.
+#
+# Format:
+#   - pattern: "regex string"   (Python re, IGNORECASE always applied)
+#     flags: "DOTALL"           (optional — add re.DOTALL)
+#     key: handler_key
+#     note: "optional description"
+#
+# NOTE: patterns must be single-line strings. Do NOT use YAML block scalars
+# (>, >-, |) — they insert whitespace that breaks regex alternation.
+
+use_cases:
+
+  - pattern: "(?:rewrite|refactor|make|convert)\\s+(?:this|the\\s+following)\\s+(?:code|function|snippet)\\s+(?:in\\s+a\\s+)?(?:more\\s+)?(?:pythonic|idiomatic|functional|object.oriented|clean|efficient)\\b|(?:pythonic\\s+way|more\\s+pythonic\\s+version)\\b|(?:rewrite\\s+(?:this|the\\s+following)\\s+(?:in\\s+a\\s+)?more\\s+pythonic)\\b"
+    flags: DOTALL
+    key: rewrite_code
+    note: Idiomatic/Pythonic code rewrite
+
+  - pattern: "\\bmake\\s+(?:this|it|the\\s+following)\\s+(?:more\\s+)?(?:formal|professional|informal|casual|concise|shorter|simpler|cleaner|elaborate|detailed|longer|polite|friendly|academic|technical)\\b|\\brewrite\\s+(?:this|it|the\\s+following)\\b|\\bparaphrase\\b|\\bimprove\\s+(?:this|my)\\s+(?:writing|text|email|message)\\b|\\bfix\\s+(?:my\\s+)?(?:grammar|spelling|writing)\\b|\\bsimplify\\s+(?:this|the\\s+following)\\s+(?:text|paragraph|sentence)\\b"
+    key: rewrite
+    note: Text register / style transformation
+
+  - pattern: "\\bextract\\b.{0,60}\\b(?:email|url|link|date|name|number|phone|address|entity|entities|keyword|key.value|data|information)\\b|\\bfind\\s+all\\s+(?:emails?|urls?|dates?|names?|numbers?|phone|links?)\\b|\\bpull\\s+out\\b.{0,30}\\b(?:email|url|date|name|number)\\b|\\blist\\s+(?:all\\s+)?(?:emails?|urls?|dates?|names?|phone\\s+numbers?)\\b|\\bextract\\b.{0,10}\\b(?:emails?|urls?|dates?|numbers?|names?)\\b"
+    flags: DOTALL
+    key: extract
+    note: Extract structured entities from text
+
+  - pattern: "\\b(?:create|make|generate|build|show|produce)\\s+(?:a\\s+)?(?:markdown\\s+)?(?:table|comparison\\s+table|matrix)\\b|\\bcompare\\b.{0,50}\\b(?:table|side\\s+by\\s+side|versus|vs)\\b|\\bpros\\s+and\\s+cons\\b|\\badvantages\\s+and\\s+disadvantages\\b|\\btradeoffs?\\b|\\bbenefits?\\s+and\\s+drawbacks?\\b"
+    key: table
+    note: Generate markdown tables and comparison structures
+
+  - pattern: "\\bgive\\s+me\\s+(?:\\d+\\s+)?(?:ideas?|suggestions?|examples?|options?|ways?|reasons?|tips?|strategies?|approaches?|use\\s+cases?)\\b|\\bbrainstorm\\b|\\blist\\s+(?:\\d+\\s+)?(?:ways?|ideas?|reasons?|examples?|options?|tips?)\\b|\\bwhat\\s+are\\s+(?:some|good|the\\s+best)\\s+(?:ways?|ideas?|reasons?|examples?)\\b"
+    key: brainstorm
+    note: Generate numbered idea lists
+
+  - pattern: "(?:this\\s+code\\s+(?:has|gives|throws|produces|raises)\\s+(?:a\\s+)?(?:bug|error|exception|issue|problem|warning))|(?:(?:bug|error|exception|issue|problem)\\s+in\\s+(?:this|my)\\s+code)|(?:why\\s+(?:is|does)\\s+(?:this|my)\\s+code\\s+(?:not|fail|crash|throw|break))|(?:what\\s+is\\s+wrong\\s+with\\s+(?:this|my)\\s+code)|(?:fix\\s+(?:this|my|the)\\s+(?:code|function|script|program))"
+    flags: DOTALL
+    key: debug_inline
+    note: Static analysis of pasted code
+
+  - pattern: "\\bwalk\\s+me\\s+through\\b|\\bhow\\s+(?:do\\s+I|to)\\s+(?:set\\s+up|install|configure|deploy|build|create|run|use|get\\s+started)\\b|\\bstep.by.step\\b|\\bgive\\s+me\\s+(?:step.by.step\\s+)?(?:instructions?|guide|tutorial)\\b|\\bset\\s+up\\s+(?:a\\s+)?(?:python\\s+)?(?:project|environment|venv)\\b"
+    key: howto
+    note: Procedural step-by-step guides
+
+  - pattern: "\\bwill\\s+(?:the\\s+)?(?:stock|market|price|weather|bitcoin|crypto|election)\\b|\\b(?:predict|forecast|estimate)\\s+(?:the\\s+)?(?:future|tomorrow|next\\s+week|next\\s+year)\\b|\\bwhat\\s+will\\s+happen\\s+(?:to|with|in)\\b|\\bwill\\s+it\\s+rain\\b|\\bwill\\s+(?:prices?|rates?|stocks?)\\s+(?:go|rise|fall|drop|increase|decrease)\\b"
+    key: uncertainty
+    note: Honest non-answer for unknowable future events
+
+  - pattern: "\\b(?:doc(?:ument)?|source|paper|article|text|passage)\\s*[12]\\b|\\bcompare\\s+(?:these|the\\s+following)\\s+(?:documents?|sources?|statements?|views?|positions?)\\b|\\bwhat\\s+do\\s+they\\s+(?:agree|disagree|differ|share|have\\s+in\\s+common)\\b|\\bpoints?\\s+of\\s+(?:agreement|disagreement|contention|conflict)\\b|\\bone\\s+(?:says?|argues?|claims?|states?).{0,60}other\\s+(?:says?|argues?|claims?)\\b"
+    flags: DOTALL
+    key: multidoc
+    note: Compare two stated positions
+
+  - pattern: "\\bwrite\\s+(?:a\\s+)?(?:haiku|poem|sonnet|limerick|ode|rhyme|verse|stanza)\\b|\\bwrite\\s+(?:a\\s+)?(?:short\\s+)?(?:story|tale|narrative|dialogue|scene|monologue)\\b|\\bcontinue\\s+(?:this|the)\\s+(?:story|narrative|passage|tale)\\b|\\bcompose\\s+(?:a\\s+)?(?:poem|haiku|song|verse|letter|essay)\\b|\\bwrite\\s+(?:me\\s+)?a\\s+(?:creative|fictional|imaginative)\\b"
+    key: creative
+    note: Structured creative writing templates

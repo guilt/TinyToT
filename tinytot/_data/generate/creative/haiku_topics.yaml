@@ -1,0 +1,104 @@
+# Haiku topic word banks for tinytot/generate.py creative handler
+#
+# Each topic maps to three lines: 5-syllable opening, 7-syllable middle, 5-syllable close.
+# Aliases allow multiple trigger words to map to the same lines.
+# Add new topics here — no code change required.
+
+topics:
+  autumn:
+    line1: "Crimson leaves descend"
+    line2: "Wind whispers through empty boughs"
+    line3: "A crow calls — winter"
+    aliases: [fall]
+
+  spring:
+    line1: "Cherry blossoms drift"
+    line2: "Rain softens yesterday's soil"
+    line3: "First green blade, reaching"
+
+  summer:
+    line1: "Heat shimmers on stone"
+    line2: "Cicadas fill the long dusk"
+    line3: "One cloud, no shadow"
+
+  winter:
+    line1: "Bare branch holds the snow"
+    line2: "Silence fills the frozen pond"
+    line3: "Ice cracks — something stirs"
+
+  ocean:
+    line1: "Waves erase my steps"
+    line2: "Salt wind carries no promise"
+    line3: "The tide returns, changed"
+    aliases: [sea, water]
+
+  moon:
+    line1: "Silver light on still water"
+    line2: "The moon asks nothing of us"
+    line3: "One ripple, then dark"
+    aliases: [night sky, lunar]
+
+  rain:
+    line1: "Rain drums on old roofs"
+    line2: "Each drop a small forgetting"
+    line3: "Soil opens — breathes deep"
+
+  mountain:
+    line1: "Cloud rests on the peak"
+    line2: "All paths end in the same stone"
+    line3: "The eagle, unhurried"
+    aliases: [mountains, peak, summit]
+
+  forest:
+    line1: "Old trees creak and lean"
+    line2: "Mushrooms where the giant fell"
+    line3: "Moss covers all truths"
+    aliases: [trees, woods]
+
+  city:
+    line1: "Glass towers hold light"
+    line2: "A thousand lives behind each pane"
+    line3: "One pigeon — unbothered"
+    aliases: [urban, street]
+
+  night:
+    line1: "Stars crowd the darkness"
+    line2: "An owl asks the same question twice"
+    line3: "Morning does not answer"
+
+  love:
+    line1: "Your name in my breath"
+    line2: "Distance measures what we carry"
+    line3: "Two shadows — one dusk"
+    aliases: [heart, longing, romance]
+
+  time:
+    line1: "The clock keeps no faith"
+    line2: "Each second spent cannot return"
+    line3: "Dust on yesterday's keys"
+
+  code:
+    line1: "Screen glow at midnight"
+    line2: "The cursor blinks — waiting, waiting"
+    line3: "One bracket, forgotten"
+    aliases: [programming, software, computer]
+
+  fire:
+    line1: "Embers breathe and fade"
+    line2: "Ash remembers every flame"
+    line3: "Smoke finds the open sky"
+
+  river:
+    line1: "The river does not ask"
+    line2: "Stone learns patience from the flow"
+    line3: "Both arrive at sea"
+
+  silence:
+    line1: "No word fills this room"
+    line2: "Even breath becomes intrusion"
+    line3: "The candle agrees"
+
+  default:
+    line1: "Still water at dawn"
+    line2: "A heron stands without a thought"
+    line3: "Reeds bend — the world turns"

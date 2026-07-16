@@ -1,0 +1,62 @@
+# See documentation at: https://pre-commit.com/
+# You can update your hooks with ``pre-commit autoupdate`` on the command line.
+# The tests and docs directories are ignored for some hooks.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff
+        types_or: [python, pyi]
+        args: [--fix]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Mypy: Optional static type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        exclude: ^(docs/|tinytot/cli/)
+        language: system
+        entry: bash -c '' --
+        verbose: true
+
+  # General fixers and safety checks
+  # https://github.com/pre-commit/pre-commit-hooks#hooks-available
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: debug-statements
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-ast
+      - id: check-docstring-first
+      - id: name-tests-test
+        args: ["--pytest-test-first"]
+        exclude: ^tinytot/tests/conftest\.py$|^tinytot/tests/check_benchmarks\.py$|^tinytot/tests/check_data_quality\.py$
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pipenv run pytest tinytot/tests
+        language: system
+        pass_filenames: false
+
+      - id: benchmark-regression
+        name: benchmark regression guard
+        entry: pipenv run python -m tinytot.tests.check_benchmarks
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        verbose: true
+
+      - id: data-quality
+        name: data quality guard
+        entry: pipenv run python -m tinytot.tests.check_data_quality
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        verbose: true

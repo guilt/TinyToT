@@ -1,0 +1,159 @@
+# How-to step scripts for tinytot/generate.py howto handler
+#
+# Each entry: a trigger pattern and a list of numbered steps.
+# The loader compiles the pattern (IGNORECASE). First match wins.
+# Add new how-to guides here — no code change required.
+
+scripts:
+  - trigger: 'set\s+up\s+(?:a\s+)?python\s+(?:project|environment|venv)|python\s+venv'
+    title: Set up a Python project
+    steps:
+      - "Create a project directory: `mkdir my-project && cd my-project`"
+      - "Create a virtual environment: `python -m venv .venv`"
+      - "Activate it: `source .venv/bin/activate` (Linux/Mac) or `.venv\\Scripts\\activate` (Windows)"
+      - "Install dependencies: `pip install <package>` then `pip freeze > requirements.txt`"
+      - "Create your entry point: `touch main.py`"
+      - "Initialise version control: `git init && echo '.venv/' >> .gitignore`"
+      - "Run your code: `python main.py`"
+
+  - trigger: 'install\s+(?:and\s+)?(?:set\s+up\s+)?docker|get\s+started\s+with\s+docker'
+    title: Install and set up Docker
+    steps:
+      - "Download Docker Desktop from docker.com and run the installer"
+      - "Verify installation: `docker --version`"
+      - "Pull a test image: `docker pull hello-world`"
+      - "Run it: `docker run hello-world`"
+      - "Create a `Dockerfile` in your project root"
+      - "Build your image: `docker build -t my-app .`"
+      - "Run your container: `docker run -p 8080:8080 my-app`"
+
+  - trigger: 'deploy\s+(?:to\s+)?(?:heroku|aws|gcp|azure|vercel|netlify|render)'
+    title: Deploy to a cloud platform
+    steps:
+      - "Create an account on your chosen platform"
+      - "Install the CLI tool (e.g. `npm install -g heroku` or `pip install awscli`)"
+      - "Login: `heroku login` / `aws configure`"
+      - "Create an app: `heroku create my-app-name`"
+      - "Add a `Procfile` declaring your process: `web: python app.py`"
+      - "Commit all changes: `git add -A && git commit -m 'deploy'`"
+      - "Deploy: `git push heroku main`"
+      - "Open the app: `heroku open`"
+
+  - trigger: 'create\s+(?:a\s+)?git\s+repo|set\s+up\s+git|initialise\s+git|initialize\s+git'
+    title: Create a Git repository
+    steps:
+      - "Install Git: download from git-scm.com"
+      - "Configure identity: `git config --global user.name 'Your Name'` and `git config --global user.email 'you@example.com'`"
+      - "Initialise a repo: `git init` in your project directory"
+      - "Stage files: `git add .`"
+      - "First commit: `git commit -m 'Initial commit'`"
+      - "Create a remote on GitHub/GitLab, then: `git remote add origin <url>`"
+      - "Push: `git push -u origin main`"
+
+  - trigger: 'write\s+a\s+(?:unit\s+)?test|set\s+up\s+(?:pytest|unittest|testing)'
+    title: Set up pytest and write tests
+    steps:
+      - "Install pytest: `pip install pytest`"
+      - "Create a test file: `touch tests/test_main.py`"
+      - "Import your module and write a test function starting with `test_`"
+      - "Use `assert` to check expected vs actual values"
+      - "Run tests: `pytest` from the project root"
+      - "For coverage: `pip install pytest-cov && pytest --cov=.`"
+      - "Add to CI: run `pytest` in your pipeline config"
+
+  - trigger: 'set\s+up\s+(?:a\s+)?(?:react|vue|angular|next\.?js|nuxt)\s+(?:project|app)'
+    title: Set up a React/frontend project
+    steps:
+      - "Install Node.js from nodejs.org (includes npm)"
+      - "Create a new project: `npx create-react-app my-app` (React) or `npm create vue@latest` (Vue)"
+      - "Enter the project directory: `cd my-app`"
+      - "Start the dev server: `npm start` or `npm run dev`"
+      - "Build for production: `npm run build`"
+      - "Run tests: `npm test`"
+      - "Lint code: `npm run lint` (if configured)"
+
+  - trigger: 'set\s+up\s+(?:a\s+)?(?:postgres|postgresql|mysql|sqlite|mongodb)\s+(?:database|db)'
+    title: Set up a database
+    steps:
+      - "Install the database engine (e.g. `brew install postgresql` or download from postgresql.org)"
+      - "Start the service: `brew services start postgresql` or `pg_ctl start`"
+      - "Create a database: `createdb mydb`"
+      - "Connect: `psql mydb`"
+      - "Create a table: `CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);`"
+      - "Install a Python driver: `pip install psycopg2-binary` (PostgreSQL) or `pip install pymysql` (MySQL)"
+      - "Connect from Python: `import psycopg2; conn = psycopg2.connect('dbname=mydb')`"
+
+  - trigger: 'how\s+to\s+(?:read|parse|load|process)\s+(?:a\s+)?csv'
+    title: Read and process a CSV file in Python
+    steps:
+      - "Import the csv module: `import csv`"
+      - "Open the file: `with open('data.csv', newline='') as f:`"
+      - "Create a reader: `reader = csv.DictReader(f)`"
+      - "Iterate: `for row in reader: print(row['column_name'])`"
+      - "For pandas: `import pandas as pd; df = pd.read_csv('data.csv')`"
+      - "Inspect: `print(df.head())` and `print(df.dtypes)`"
+      - "Process: `df['new_col'] = df['col_a'] + df['col_b']`"
+
+  - trigger: 'csv\s+(?:in\s+)?chunks?|read\s+(?:large\s+)?csv\s+without\s+loading|chunked?\s+csv|csv\s+chunk|large\s+csv\s+(?:file\s+)?in\s+chunks?|read\s+(?:a\s+)?large\s+csv'
+    title: Read a large CSV file in chunks (memory-efficient)
+    steps:
+      - "Use pandas chunksize: `for chunk in pd.read_csv('big.csv', chunksize=10000):`"
+      - "Process each chunk: `results.append(chunk[chunk['col'] > threshold])`"
+      - "Combine results: `df = pd.concat(results, ignore_index=True)`"
+      - "For pure Python (no pandas): iterate line by line with `csv.DictReader`"
+      - "`with open('big.csv') as f: reader = csv.DictReader(f)`"
+      - "`for row in reader: process(row)  # only one row in memory at a time`"
+      - "For very large files consider: `dask.dataframe.read_csv('big.csv')` (lazy evaluation)"
+
+  - trigger: 'merge\s+(?:two\s+)?(?:csv|dataframes?)|join\s+(?:two\s+)?(?:csv|dataframes?)|combine\s+(?:two\s+)?csv'
+    title: Merge two CSV files on a common column
+    steps:
+      - "Load both files: `df1 = pd.read_csv('file1.csv')` and `df2 = pd.read_csv('file2.csv')`"
+      - "Inner join (keep only matching rows): `merged = pd.merge(df1, df2, on='common_column')`"
+      - "Left join (keep all rows from df1): `merged = pd.merge(df1, df2, on='common_column', how='left')`"
+      - "Outer join (keep all rows from both): `how='outer'`"
+      - "Merge on multiple columns: `on=['col1', 'col2']`"
+      - "Merge on columns with different names: `left_on='id', right_on='user_id'`"
+      - "Save result: `merged.to_csv('merged.csv', index=False)`"
+
+  - trigger: 'csv\s+to\s+json|transform\s+csv\s+(?:to|into)\s+json|convert\s+csv\s+(?:to|into)\s+json'
+    title: Transform CSV to JSON in Python
+    steps:
+      - "Load CSV: `import csv, json`"
+      - "Read rows: `with open('data.csv') as f: rows = list(csv.DictReader(f))`"
+      - "Each row is already a dict — write to JSON: `json.dump(rows, open('data.json','w'), indent=2)`"
+      - "With pandas: `df = pd.read_csv('data.csv'); df.to_json('data.json', orient='records', indent=2)`"
+      - "For nested JSON: reshape df first using `df.groupby`, `pivot`, or manual transformation"
+      - "Verify: `python -m json.tool data.json` to check valid JSON"
+
+  - trigger: 'parse\s+json\s+(?:file|recursively)|extract\s+(?:all\s+)?keys?\s+(?:from\s+json|recursively)|json\s+keys?\s+recursively'
+    title: Parse a JSON file and extract keys recursively
+    steps:
+      - "Load JSON: `import json; data = json.load(open('data.json'))`"
+      - "For nested key extraction, write a recursive function:"
+      - "```python\ndef get_all_keys(obj, prefix=''):\n    if isinstance(obj, dict):\n        for k, v in obj.items():\n            yield prefix + k\n            yield from get_all_keys(v, prefix + k + '.')\n    elif isinstance(obj, list):\n        for i, item in enumerate(obj):\n            yield from get_all_keys(item, prefix + f'[{i}].')\n```"
+      - "Call it: `keys = list(get_all_keys(data))`"
+      - "For large files use `ijson` for streaming: `pip install ijson`"
+      - "`import ijson; with open('large.json','rb') as f: parser = ijson.parse(f)`"
+
+  - trigger: 'large\s+json\s+(?:file\s+)?without\s+loading|process\s+json\s+(?:streaming|stream)|json\s+streaming|stream\s+json'
+    title: Process a large JSON file without loading it into memory
+    steps:
+      - "Install ijson: `pip install ijson`"
+      - "Stream top-level array: `import ijson`"
+      - "`with open('large.json', 'rb') as f:`"
+      - "`    for item in ijson.items(f, 'item'):  # 'item' = each element of top-level array`"
+      - "`        process(item)  # one object in memory at a time`"
+      - "For JSONL (one JSON object per line): `for line in open('data.jsonl'): obj = json.loads(line)`"
+      - "Tip: use `ijson.kvitems(f, 'key')` to stream values for a specific key"
+
+  - trigger: 'read\s+(?:an?\s+)?excel|excel\s+(?:file|spreadsheet)|xlsx\s+file|\\.xlsx'
+    title: Read an Excel file in Python
+    steps:
+      - "Install openpyxl: `pip install openpyxl`"
+      - "Read with pandas: `df = pd.read_excel('data.xlsx', sheet_name='Sheet1')`"
+      - "Read all sheets: `sheets = pd.read_excel('data.xlsx', sheet_name=None)  # returns dict`"
+      - "Filter rows: `filtered = df[df['sales'] > 1000]`"
+      - "Select columns: `result = df[['name', 'sales', 'date']]`"
+      - "Write back: `df.to_excel('output.xlsx', index=False)`"
+      - "For pure openpyxl (no pandas): `wb = openpyxl.load_workbook('data.xlsx'); ws = wb.active`"

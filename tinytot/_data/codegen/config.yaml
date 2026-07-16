@@ -1,0 +1,97 @@
+# Code generation configuration.
+# Controls language detection, request detection, and fence label mapping.
+#
+# All regexes use Python re syntax with IGNORECASE applied automatically.
+
+# ---------------------------------------------------------------------------
+# Language detection
+# ---------------------------------------------------------------------------
+# Each entry: a regex that matches the language name in a prompt.
+# The first match wins.  The key becomes the canonical language name.
+#
+# Special note on boundaries: c++ and c# use lookahead/lookbehind because
+# \b word-boundary does not work with non-word chars (+ and #).
+
+languages:
+  - match: "(?<!\\w)(python)(?!\\w)"
+    name: python
+
+  - match: "(?<!\\w)(javascript)(?!\\w)"
+    name: javascript
+
+  - match: "(?<!\\w)(typescript)(?!\\w)"
+    name: typescript
+
+  # java must come before javascript to avoid partial match
+  - match: "(?<!\\w)(java(?!script))(?!\\w)"
+    name: java
+
+  - match: "(?<!\\w)(c\\+\\+|cpp)(?!\\w)"
+    name: c++
+
+  - match: "(?<!\\w)(c#|csharp)(?!\\w)"
+    name: c#
+
+  - match: "(?<!\\w)(go(?:lang)?)(?!\\w)"
+    name: go
+
+  - match: "(?<!\\w)(rust)(?!\\w)"
+    name: rust
+
+  - match: "(?<!\\w)(ruby)(?!\\w)"
+    name: ruby
+
+  - match: "(?<!\\w)(php)(?!\\w)"
+    name: php
+
+  - match: "(?<!\\w)(swift)(?!\\w)"
+    name: swift
+
+  - match: "(?<!\\w)(kotlin)(?!\\w)"
+    name: kotlin
+
+  - match: "(?<!\\w)(scala)(?!\\w)"
+    name: scala
+
+  - match: "(?<!\\w)(sql)(?!\\w)"
+    name: sql
+
+  - match: "(?<!\\w)(bash|shell)(?!\\w)"
+    name: bash
+
+# Default language when no match (and prompt is not SQL)
+default_language: python
+
+# ---------------------------------------------------------------------------
+# SQL detection (used to override default to 'sql')
+# ---------------------------------------------------------------------------
+sql_keywords:
+  - "\\bsql\\b"
+  - "\\bselect\\b"
+  - "\\binsert\\b"
+  - "\\bupdate\\b"
+  - "\\bdelete\\b"
+  - "\\bcreate table\\b"
+  - "\\bjoin\\b"
+  - "\\bquery\\b"
+
+# ---------------------------------------------------------------------------
+# Fence label mapping
+# Code fences use these labels instead of the canonical language name.
+# ---------------------------------------------------------------------------
+fence_labels:
+  c++: cpp
+  c#: csharp
+
+# ---------------------------------------------------------------------------
+# Code request detection
+# A prompt is a code request if it matches ANY of these patterns,
+# OR if it matches a template pattern from patterns.yaml.
+# ---------------------------------------------------------------------------
+request_patterns:
+  # "write/create/implement X function/class/..."
+  - "\\b(?:write|create|implement|generate|build|code|program|define|make)\\b.{0,60}\\b(?:function|method|class|script|program|query|decorator|comprehension|algorithm|dataclass|struct|interface|lambda|snippet|example|code)\\b"
+  # "write/implement X in python/javascript/..."
+  - "\\b(?:implement|write)\\b.{0,30}\\b(?:in python|in javascript|in java|in sql|in go|in rust|in swift|in kotlin|in ruby|in typescript|in c\\+\\+|in c#)\\b"
+  # "function/class/method to/that/which/for ..."
+  - "\\b(?:function|class|method)\\b.{0,20}\\b(?:to|that|which|for)\\b"

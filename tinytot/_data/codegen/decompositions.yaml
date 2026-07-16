@@ -1,0 +1,217 @@
+# Problem Decomposition Table
+#
+# Maps a composite problem to the sub-problems it is composed from.
+# The inference engine uses this to chain templates together.
+#
+# Format:
+#   problem_key:
+#     description: "what it does"
+#     template: "primary_template_key"    # if it maps 1:1 to a template
+#     composes:                            # if it chains sub-problems
+#       - template: "key"
+#         role: "what this step does"
+#     patterns:                            # regexes that trigger this entry
+#       - "regex string"
+#     note: "optional explanation"
+#
+# The inference engine checks patterns in order, picks the first match,
+# then either loads the template directly or chains the composed templates.
+
+decompositions:
+
+  # ---------------------------------------------------------------------------
+  # Direct mappings (1:1 to a template)
+  # ---------------------------------------------------------------------------
+
+  gcd:
+    description: "greatest common divisor"
+    template: gcd
+    patterns:
+      - '\bgcd\b'
+      - '\bgreatest\s*common\s*divisor\b'
+      - '\bhcf\b'
+      - '\bhighest\s*common\s*factor\b'
+
+  lcm:
+    description: "least common multiple"
+    template: gcd
+    note: "LCM is implemented alongside GCD in the same template"
+    patterns:
+      - '\blcm\b'
+      - '\bleast\s*common\s*multiple\b'
+
+  is_prime:
+    description: "primality test"
+    template: is_prime
+    patterns:
+      - '\bis\s+(?:a\s+)?prime\b'
+      - '\bcheck\s+(?:if\s+)?(?:a\s+)?(?:number\s+is\s+)?prime\b'
+      - '\bprimality\b'
+      - '\bprime\s+check\b'
+
+  sieve:
+    description: "find all primes up to N"
+    template: is_prime
+    note: "Sieve of Eratosthenes is in the is_prime template"
+    patterns:
+      - '\bsieve\b'
+      - '\ball\s+primes\b'
+      - '\bprimes?\s+up\s+to\b'
+      - '\bfind\s+all\s+prime\b'
+      - '\blist\s+of\s+primes\b'
+
+  fizzbuzz:
+    description: "FizzBuzz 1 to N"
+    template: fizzbuzz
+    patterns:
+      - '\bfizzbuzz\b'
+      - '\bfizz\s*buzz\b'
+
+  kadane:
+    description: "maximum subarray sum"
+    template: kadane
+    patterns:
+      - '\bkadane\b'
+      - '\bmaximum\s+subarray\b'
+      - '\bmax\s+subarray\b'
+      - '\blargest\s+subarray\s+sum\b'
+      - '\bcontiguous\s+subarray\b'
+
+  coin_change:
+    description: "minimum coins to make an amount"
+    template: coin_change
+    patterns:
+      - '\bcoin\s+change\b'
+      - '\bminimum\s+coins?\b'
+      - '\bfewest\s+coins?\b'
+      - '\bnumber\s+of\s+(?:ways|combinations)\s+to\s+make\b'
+
+  lcs:
+    description: "longest common subsequence"
+    template: lcs
+    patterns:
+      - '\blcs\b'
+      - '\blongest\s+common\s+subsequence\b'
+
+  knapsack:
+    description: "0/1 knapsack problem"
+    template: knapsack
+    patterns:
+      - '\bknapsack\b'
+      - '\b0/1\s+knapsack\b'
+      - '\bmaximum\s+value.{0,30}\bweight\s+capacity\b'
+
+  climb_stairs:
+    description: "number of ways to climb stairs"
+    template: climb_stairs
+    patterns:
+      - '\bclimb\s+stairs\b'
+      - '\bstaircase\s+problem\b'
+      - '\bways?\s+to\s+climb\b'
+      - '\bstep\s+problem\b'
+
+  cycle_detection:
+    description: "detect cycle in a linked list"
+    template: cycle_detection
+    patterns:
+      - '\bcycle\s+in\s+(?:a\s+)?linked\s+list\b'
+      - '\bdetect\s+cycle\b'
+      - '\bfloyd\b'
+      - '\btwo.pointer\s+cycle\b'
+
+  bfs_level_order:
+    description: "BFS level order traversal of a binary tree"
+    template: bfs_level_order
+    patterns:
+      - '\blevel.order\b'
+      - '\bbfs\s+tree\b'
+      - '\bbreadth.first\s+(?:search\s+)?tree\b'
+      - '\btraversal\s+by\s+level\b'
+
+  # ---------------------------------------------------------------------------
+  # Compositional mappings (chain sub-problems)
+  # ---------------------------------------------------------------------------
+
+  median:
+    description: "median of a list"
+    template: median
+    composes:
+      - template: sort_list
+        role: "sort the input"
+      - template: median
+        role: "pick middle element(s)"
+    patterns:
+      - '\bmedian\b'
+      - '\bmiddle\s+value\b'
+
+  second_largest:
+    description: "second largest element"
+    template: second_largest
+    composes:
+      - template: sort_list
+        role: "sort descending"
+      - template: find_max
+        role: "find first non-maximum"
+    patterns:
+      - '\bsecond\s+largest\b'
+      - '\bsecond\s+maximum\b'
+      - '\bsecond\s+biggest\b'
+
+  anagram:
+    description: "check if two strings are anagrams"
+    template: anagram
+    composes:
+      - template: sort_list
+        role: "sort both strings"
+    patterns:
+      - '\banagram\b'
+      - '\bsame\s+letters\b'
+      - '\bpermutation\s+of\b'
+
+  find_duplicates:
+    description: "find duplicate elements in a list"
+    template: find_duplicates
+    composes:
+      - template: word_count
+        role: "count element frequencies"
+      - template: find_duplicates
+        role: "filter elements with count > 1"
+    patterns:
+      - '\bduplicates?\b'
+      - '\brepeated\s+elements?\b'
+      - '\bappears?\s+(?:more\s+than\s+once|twice|multiple)\b'
+
+  reverse_words:
+    description: "reverse words in a sentence"
+    template: reverse_words
+    composes:
+      - template: reverse_string
+        role: "split into words"
+      - template: sort_list
+        role: "reverse the word list"
+    patterns:
+      - '\breverse\s+words\b'
+      - '\breverse\s+(?:the\s+)?order\s+of\s+words\b'
+      - '\bwords?\s+in\s+reverse\b'
+
+  power_set:
+    description: "all subsets of a list"
+    template: power_set
+    patterns:
+      - '\bpower\s+set\b'
+      - '\ball\s+subsets?\b'
+      - '\ball\s+combinations?\b.{0,20}\blist\b'
+
+  most_frequent:
+    description: "most frequent element"
+    template: most_frequent
+    composes:
+      - template: word_count
+        role: "count element frequencies"
+      - template: find_max
+        role: "find element with highest count"
+    patterns:
+      - '\bmost\s+frequent\b'
+      - '\bmost\s+common\b'
+      - '\bmode\b'
+      - '\bhighest\s+frequency\b'

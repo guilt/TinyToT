@@ -1,0 +1,42 @@
+# Makefile.user.template — copy to Makefile.user and fill in your values.
+# Makefile.user is git-ignored; this template is tracked.
+
+# --------------------------------------------------------------------------
+# Source .env if present
+# --------------------------------------------------------------------------
+# Uncomment to load .env automatically (e.g. proxy vars written by awsproxy).
+#
+# ifneq (,$(wildcard .env))
+#   include .env
+#   export $(shell sed 's/=.*//' .env | grep -v '^\s*#' | grep -v '^\s*$$')
+# endif
+
+# --------------------------------------------------------------------------
+# Python / pipenv
+# --------------------------------------------------------------------------
+# Override if python3.8 is not on PATH under that exact name.
+# PYTHON_VERSION ?= 3.8
+
+# --------------------------------------------------------------------------
+# Package index
+# --------------------------------------------------------------------------
+# Point pipenv at your organisation's internal PyPI mirror.
+# If set, install-deps will export this as PIP_INDEX_URL.
+# PIP_INDEX_URL ?= https://your-pypi-mirror/simple
+
+# --------------------------------------------------------------------------
+# Princeton ToT traces (optional)
+# --------------------------------------------------------------------------
+# Path to an external Princeton ToT traces checkout for make benchmark.
+# TOT_TRACES ?= /path/to/princeton-tot-traces
+
+# --------------------------------------------------------------------------
+# pre-check extension
+# --------------------------------------------------------------------------
+# Optional: define user-pre-check to add extra validation steps that run
+# at the end of the main pre-check target without modifying the Makefile.
+#
+# define user-pre-check
+# 	@echo "Running custom pre-checks..."
+# 	@# add your checks here
+# endef

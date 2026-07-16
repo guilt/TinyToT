@@ -1,0 +1,11 @@
+include README.md LICENSE.md
+recursive-include tinytot/_data/categories *.md
+recursive-include tinytot/_data/knowledge *.md
+recursive-include tinytot/_data/schema *.md
+recursive-include tinytot/_data/codegen *.yaml *.md
+recursive-include tinytot/_data/eval *.md
+recursive-include tinytot/_data/generate *.yaml
+include tinytot/_data/benchmarks_baseline.json
+exclude tinytot/_data/.sources
+exclude tinytot/_data/journal
+exclude tinytot/_data/gsm8k_test.jsonl

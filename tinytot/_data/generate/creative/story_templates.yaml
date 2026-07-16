@@ -1,0 +1,61 @@
+# Story continuation templates for tinytot/generate.py creative handler
+#
+# Each entry: a trigger keyword (found in the prompt) and a template string.
+# {pronoun} is substituted with "She" or "He" based on the prompt.
+# Add new templates here — no code change required.
+
+templates:
+  - trigger: door
+    text: >-
+      {pronoun} reached for the light switch, fingers brushing cold plaster.
+      The click. Fluorescent light stuttered alive. The room was empty, but on
+      the floor, arranged in a perfect circle, were photographs. All of them showed
+      the same house. This house. And in each one, the front door was open.
+
+  - trigger: letter
+    text: >-
+      The letter had no return address. {pronoun} turned it over twice before
+      opening it — a single sheet, handwriting {pronoun} recognised with a jolt.
+      Her mother's. Her mother who had died six years ago. The date at the top
+      read: yesterday.
+
+  - trigger: phone
+    text: >-
+      The phone rang at 3:14 a.m. {pronoun} almost didn't answer. The voice on
+      the other end was {pronoun}'s own — calm, methodical, wrong. "Listen
+      carefully," it said. "You have about forty minutes to fix what you did."
+
+  - trigger: mirror
+    text: >-
+      The reflection moved half a second too late. {pronoun} stepped back, then
+      forward again. The figure in the glass smiled. {pronoun} had not smiled.
+      Behind the reflection, just visible over its shoulder, was an open door
+      that did not exist on this side of the glass.
+
+  - trigger: forest
+    text: >-
+      The trees closed behind them before they realised they had been walking for
+      hours. The map showed a path. No path existed. {pronoun} checked the compass —
+      it spun freely, settled, then began to turn slowly backward. North was
+      behind them now. North had always been behind them.
+
+  - trigger: key
+    text: >-
+      The key fit the lock perfectly, which was impossible, because {pronoun} had
+      never been here before. The door swung open into a hallway {pronoun} knew:
+      the wallpaper, the creak of the third step, the faint smell of cedar. This
+      was {pronoun}'s house. The house that burned down eleven years ago.
+
+  - trigger: stranger
+    text: >-
+      The stranger knew her name. Not just her name — her middle name, the one
+      she had never told anyone, the one her mother had whispered to her at birth
+      and never spoken aloud again. {pronoun} walked faster. The stranger kept
+      perfect pace without appearing to hurry at all.
+
+  - trigger: window
+    text: >-
+      Through the window, the street looked normal. Cars, pedestrians, a dog
+      straining at a leash. But the shadows were wrong — all of them pointing
+      toward the sun instead of away from it. {pronoun} checked: yes, the sun was
+      in the west. The shadows knew something the sun did not.

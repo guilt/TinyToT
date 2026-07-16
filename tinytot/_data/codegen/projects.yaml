@@ -1,0 +1,609 @@
+# Project Scaffolding Blueprints
+#
+# Each blueprint defines a multi-file project that TinyToT can generate.
+# Files reference existing codegen templates or inline content blocks.
+#
+# Format:
+#   project_key:
+#     description: "what it generates"
+#     patterns:           # regexes that trigger this blueprint
+#       - "regex string"
+#     files:              # list of files to create
+#       - path: "relative/path/file.ext"
+#         template: key   # optional: load from data/codegen/templates/<key>.md
+#         language: "python"  # for template lookup
+#         content: |      # optional: inline content (overrides template)
+#           ...
+#         note: "what this file does"
+
+projects:
+
+  # ---------------------------------------------------------------------------
+  # Flask REST API
+  # ---------------------------------------------------------------------------
+  flask_api:
+    description: "Flask REST API with a /users endpoint"
+    patterns:
+      - '\bflask\b.{0,30}\b(?:api|rest|endpoint|server|app)\b'
+      - '\bbuild\b.{0,30}\bflask\b'
+      - '\bcreate\b.{0,30}\bflask\b'
+      - '\bflask\s+(?:rest\s+)?api\b'
+    files:
+      - path: "app.py"
+        language: python
+        content: |
+          from flask import Flask, jsonify, request
+
+          app = Flask(__name__)
+
+          # In-memory store — replace with a real DB in production
+          _users: dict[int, dict] = {}
+          _next_id: int = 1
+
+
+          @app.route("/users", methods=["GET"])
+          def list_users():
+              return jsonify(list(_users.values()))
+
+
+          @app.route("/users/<int:user_id>", methods=["GET"])
+          def get_user(user_id: int):
+              user = _users.get(user_id)
+              if not user:
+                  return jsonify({"error": "Not found"}), 404
+              return jsonify(user)
+
+
+          @app.route("/users", methods=["POST"])
+          def create_user():
+              global _next_id
+              data = request.get_json(silent=True) or {}
+              name = data.get("name", "").strip()
+              if not name:
+                  return jsonify({"error": "name is required"}), 400
+              user = {"id": _next_id, "name": name}
+              _users[_next_id] = user
+              _next_id += 1
+              return jsonify(user), 201
+
+
+          @app.route("/users/<int:user_id>", methods=["DELETE"])
+          def delete_user(user_id: int):
+              if user_id not in _users:
+                  return jsonify({"error": "Not found"}), 404
+              del _users[user_id]
+              return "", 204
+
+
+          if __name__ == "__main__":
+              app.run(debug=True)
+        note: "Main application with CRUD endpoints"
+
+      - path: "requirements.txt"
+        content: |
+          flask>=3.0
+          pytest>=8.0
+          requests>=2.31
+        note: "Runtime and test dependencies"
+
+      - path: "tests/test_users.py"
+        content: |
+          import pytest
+          from app import app
+
+
+          @pytest.fixture()
+          def client():
+              app.config["TESTING"] = True
+              with app.test_client() as c:
+                  yield c
+
+
+          def test_list_users_empty(client):
+              r = client.get("/users")
+              assert r.status_code == 200
+              assert r.get_json() == []
+
+
+          def test_create_and_get_user(client):
+              r = client.post("/users", json={"name": "Alice"})
+              assert r.status_code == 201
+              user = r.get_json()
+              assert user["name"] == "Alice"
+              user_id = user["id"]
+
+              r2 = client.get(f"/users/{user_id}")
+              assert r2.status_code == 200
+              assert r2.get_json()["name"] == "Alice"
+
+
+          def test_create_user_missing_name(client):
+              r = client.post("/users", json={})
+              assert r.status_code == 400
+
+
+          def test_delete_user(client):
+              r = client.post("/users", json={"name": "Bob"})
+              user_id = r.get_json()["id"]
+              r2 = client.delete(f"/users/{user_id}")
+              assert r2.status_code == 204
+              r3 = client.get(f"/users/{user_id}")
+              assert r3.status_code == 404
+        note: "Pytest test suite"
+
+      - path: "README.md"
+        content: |
+          # Flask REST API
+
+          Simple CRUD REST API for users.
+
+          ## Run
+          ```bash
+          pip install -r requirements.txt
+          python app.py
+          ```
+
+          ## Endpoints
+          | Method | Path | Description |
+          |--------|------|-------------|
+          | GET | /users | List all users |
+          | GET | /users/<id> | Get user by id |
+          | POST | /users | Create user (body: {"name": "..."}) |
+          | DELETE | /users/<id> | Delete user |
+
+          ## Test
+          ```bash
+          pytest tests/
+          ```
+        note: "Project documentation"
+
+  # ---------------------------------------------------------------------------
+  # FastAPI REST API
+  # ---------------------------------------------------------------------------
+  fastapi_api:
+    description: "FastAPI REST API with automatic OpenAPI docs"
+    patterns:
+      - '\bfastapi\b'
+      - '\bfast\s*api\b'
+    files:
+      - path: "main.py"
+        content: |
+          from __future__ import annotations
+
+          from fastapi import FastAPI, HTTPException
+          from pydantic import BaseModel
+
+          app = FastAPI(title="TinyToT API", version="1.0.0")
+
+          _items: dict[int, dict] = {}
+          _next_id: int = 1
+
+
+          class ItemCreate(BaseModel):
+              name: str
+              value: float = 0.0
+
+
+          class Item(ItemCreate):
+              id: int
+
+
+          @app.get("/items", response_model=list[Item])
+          def list_items():
+              return list(_items.values())
+
+
+          @app.get("/items/{item_id}", response_model=Item)
+          def get_item(item_id: int):
+              if item_id not in _items:
+                  raise HTTPException(status_code=404, detail="Not found")
+              return _items[item_id]
+
+
+          @app.post("/items", response_model=Item, status_code=201)
+          def create_item(body: ItemCreate):
+              global _next_id
+              item = {"id": _next_id, **body.model_dump()}
+              _items[_next_id] = item
+              _next_id += 1
+              return item
+
+
+          @app.delete("/items/{item_id}", status_code=204)
+          def delete_item(item_id: int):
+              if item_id not in _items:
+                  raise HTTPException(status_code=404, detail="Not found")
+              del _items[item_id]
+        note: "FastAPI application with Pydantic models"
+
+      - path: "requirements.txt"
+        content: |
+          fastapi>=0.111
+          uvicorn[standard]>=0.29
+          pydantic>=2.0
+          pytest>=8.0
+          httpx>=0.27
+        note: "Dependencies (httpx needed for TestClient)"
+
+      - path: "tests/test_main.py"
+        content: |
+          import pytest
+          from fastapi.testclient import TestClient
+          from main import app
+
+          client = TestClient(app)
+
+
+          def test_empty_list():
+              r = client.get("/items")
+              assert r.status_code == 200
+
+
+          def test_create_and_get():
+              r = client.post("/items", json={"name": "widget", "value": 9.99})
+              assert r.status_code == 201
+              item = r.json()
+              assert item["name"] == "widget"
+              r2 = client.get(f"/items/{item['id']}")
+              assert r2.status_code == 200
+
+
+          def test_not_found():
+              r = client.get("/items/99999")
+              assert r.status_code == 404
+        note: "Test suite using FastAPI TestClient"
+
+      - path: "README.md"
+        content: |
+          # FastAPI Project
+
+          Auto-documented REST API with Pydantic validation.
+
+          ## Run
+          ```bash
+          pip install -r requirements.txt
+          uvicorn main:app --reload
+          ```
+          Docs at: http://localhost:8000/docs
+
+          ## Test
+          ```bash
+          pytest tests/
+          ```
+        note: "Project documentation"
+
+  # ---------------------------------------------------------------------------
+  # Python CLI tool
+  # ---------------------------------------------------------------------------
+  python_cli:
+    description: "Python CLI tool with argparse and subcommands"
+    patterns:
+      - '\bcli\s+tool\b|\bcommand.line\s+tool\b|\bcli\s+app\b'
+      - '\bargparse\b.{0,30}\b(?:tool|app|script|cli)\b'
+      - '\bbuild\b.{0,20}\b(?:cli|command.line)\b'
+      - '\bcreate\b.{0,20}\b(?:cli|command.line)\b'
+    files:
+      - path: "cli.py"
+        content: |
+          #!/usr/bin/env python3
+          """Command-line tool scaffold."""
+          from __future__ import annotations
+
+          import argparse
+          import sys
+
+
+          def cmd_run(args: argparse.Namespace) -> int:
+              """Execute the run subcommand."""
+              print(f"Running with input={args.input!r}, verbose={args.verbose}")
+              return 0
+
+
+          def cmd_status(args: argparse.Namespace) -> int:
+              """Execute the status subcommand."""
+              print("Status: OK")
+              return 0
+
+
+          def build_parser() -> argparse.ArgumentParser:
+              parser = argparse.ArgumentParser(
+                  description=__doc__,
+                  formatter_class=argparse.RawDescriptionHelpFormatter,
+              )
+              parser.add_argument("--version", action="version", version="1.0.0")
+              sub = parser.add_subparsers(dest="command", required=True)
+
+              p_run = sub.add_parser("run", help="Run the tool")
+              p_run.add_argument("input", help="Input value")
+              p_run.add_argument("-v", "--verbose", action="store_true")
+              p_run.set_defaults(func=cmd_run)
+
+              p_status = sub.add_parser("status", help="Show status")
+              p_status.set_defaults(func=cmd_status)
+
+              return parser
+
+
+          def main() -> int:
+              parser = build_parser()
+              args = parser.parse_args()
+              return args.func(args)
+
+
+          if __name__ == "__main__":
+              sys.exit(main())
+        note: "CLI entry point with subcommands"
+
+      - path: "tests/test_cli.py"
+        content: |
+          import pytest
+          from cli import build_parser
+
+
+          def test_run_command(capsys):
+              parser = build_parser()
+              args = parser.parse_args(["run", "hello", "--verbose"])
+              rc = args.func(args)
+              assert rc == 0
+              captured = capsys.readouterr()
+              assert "hello" in captured.out
+
+
+          def test_status_command(capsys):
+              parser = build_parser()
+              args = parser.parse_args(["status"])
+              rc = args.func(args)
+              assert rc == 0
+        note: "Tests for CLI commands"
+
+      - path: "README.md"
+        content: |
+          # CLI Tool
+
+          ## Usage
+          ```bash
+          python cli.py run <input> [--verbose]
+          python cli.py status
+          ```
+
+          ## Test
+          ```bash
+          pytest tests/
+          ```
+        note: "Documentation"
+
+  # ---------------------------------------------------------------------------
+  # Python data pipeline
+  # ---------------------------------------------------------------------------
+  data_pipeline:
+    description: "Python ETL/data pipeline — read CSV, transform, write output"
+    patterns:
+      - '\bdata\s+pipeline\b|\betl\b|\bextract.transform.load\b'
+      - '\bread\s+csv.{0,20}\bprocess\b|\bprocess.{0,20}\bcsv\b'
+      - '\bpipeline\b.{0,20}\b(?:data|csv|transform)\b'
+    files:
+      - path: "pipeline.py"
+        content: |
+          """Simple CSV → transform → output data pipeline."""
+          from __future__ import annotations
+
+          import csv
+          import sys
+          from dataclasses import dataclass, fields
+          from pathlib import Path
+          from typing import Iterator
+
+
+          @dataclass
+          class Record:
+              """One row of data. Add/remove fields to match your schema."""
+              name: str
+              value: str
+
+              @classmethod
+              def from_row(cls, row: dict[str, str]) -> "Record":
+                  return cls(
+                      name=row.get("name", "").strip(),
+                      value=row.get("value", "").strip(),
+                  )
+
+
+          def read_csv(path: Path) -> Iterator[Record]:
+              """Yield Record objects from a CSV file."""
+              with path.open(newline="", encoding="utf-8") as fh:
+                  reader = csv.DictReader(fh)
+                  for row in reader:
+                      yield Record.from_row(row)
+
+
+          def transform(record: Record) -> Record:
+              """Apply business logic. Modify this function."""
+              return Record(
+                  name=record.name.upper(),
+                  value=record.value.strip(),
+              )
+
+
+          def write_csv(records: list[Record], path: Path) -> None:
+              """Write processed records to a CSV file."""
+              fieldnames = [f.name for f in fields(Record)]
+              with path.open("w", newline="", encoding="utf-8") as fh:
+                  writer = csv.DictWriter(fh, fieldnames=fieldnames)
+                  writer.writeheader()
+                  for rec in records:
+                      writer.writerow({f: getattr(rec, f) for f in fieldnames})
+
+
+          def run(input_path: Path, output_path: Path) -> int:
+              """Run the full pipeline. Returns record count."""
+              records = [transform(r) for r in read_csv(input_path)]
+              write_csv(records, output_path)
+              return len(records)
+
+
+          if __name__ == "__main__":
+              if len(sys.argv) != 3:
+                  print(f"Usage: {sys.argv[0]} <input.csv> <output.csv>")
+                  sys.exit(1)
+              n = run(Path(sys.argv[1]), Path(sys.argv[2]))
+              print(f"Processed {n} records.")
+        note: "Pipeline entry point"
+
+      - path: "tests/test_pipeline.py"
+        content: |
+          import csv
+          import pytest
+          from pathlib import Path
+          from pipeline import read_csv, transform, write_csv, run, Record
+
+
+          def make_csv(tmp_path: Path, rows: list[dict]) -> Path:
+              p = tmp_path / "input.csv"
+              with p.open("w", newline="") as f:
+                  if rows:
+                      writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                      writer.writeheader()
+                      writer.writerows(rows)
+              return p
+
+
+          def test_read_csv(tmp_path):
+              p = make_csv(tmp_path, [{"name": "alice", "value": "1"}])
+              records = list(read_csv(p))
+              assert len(records) == 1
+              assert records[0].name == "alice"
+
+
+          def test_transform():
+              r = Record(name="alice", value=" 42 ")
+              out = transform(r)
+              assert out.name == "ALICE"
+              assert out.value == "42"
+
+
+          def test_full_pipeline(tmp_path):
+              inp = make_csv(tmp_path, [
+                  {"name": "alice", "value": "1"},
+                  {"name": "bob", "value": "2"},
+              ])
+              out = tmp_path / "output.csv"
+              n = run(inp, out)
+              assert n == 2
+              assert out.exists()
+        note: "End-to-end pipeline tests"
+
+      - path: "README.md"
+        content: |
+          # Data Pipeline
+
+          Reads CSV → transforms records → writes output CSV.
+
+          ## Usage
+          ```bash
+          python pipeline.py input.csv output.csv
+          ```
+
+          ## Customise
+          - Edit `Record` dataclass to match your schema
+          - Edit `transform()` for your business logic
+
+          ## Test
+          ```bash
+          pytest tests/
+          ```
+        note: "Documentation"
+
+  # ---------------------------------------------------------------------------
+  # Python package / library
+  # ---------------------------------------------------------------------------
+  python_package:
+    description: "Installable Python package with pyproject.toml"
+    patterns:
+      - '\bpython\s+package\b|\bpypi\s+package\b|\bpip\s+install\b.{0,20}\bmy\b'
+      - '\bcreate\b.{0,20}\bpackage\b|\bbuild\b.{0,20}\bpackage\b'
+      - '\bpyproject\.toml\b'
+    files:
+      - path: "src/mypackage/__init__.py"
+        content: |
+          """mypackage — replace with your package description."""
+          from .core import greet
+
+          __all__ = ["greet"]
+          __version__ = "0.1.0"
+        note: "Package init"
+
+      - path: "src/mypackage/core.py"
+        content: |
+          """Core functionality."""
+
+
+          def greet(name: str) -> str:
+              """Return a greeting string.
+
+              Args:
+                  name: The name to greet.
+
+              Returns:
+                  A greeting message.
+              """
+              if not name:
+                  raise ValueError("name must not be empty")
+              return f"Hello, {name}!"
+        note: "Core module"
+
+      - path: "tests/test_core.py"
+        content: |
+          import pytest
+          from mypackage.core import greet
+
+
+          def test_greet_basic():
+              assert greet("World") == "Hello, World!"
+
+
+          def test_greet_empty_raises():
+              with pytest.raises(ValueError):
+                  greet("")
+        note: "Tests"
+
+      - path: "pyproject.toml"
+        content: |
+          [build-system]
+          requires = ["hatchling"]
+          build-backend = "hatchling.build"
+
+          [project]
+          name = "mypackage"
+          version = "0.1.0"
+          description = "Add your description here"
+          readme = "README.md"
+          requires-python = ">=3.8"
+          dependencies = []
+
+          [tool.hatch.build.targets.wheel]
+          packages = ["src/mypackage"]
+
+          [tool.pytest.ini_options]
+          testpaths = ["tests"]
+        note: "Build configuration"
+
+      - path: "README.md"
+        content: |
+          # mypackage
+
+          ## Install
+          ```bash
+          pip install -e .
+          ```
+
+          ## Usage
+          ```python
+          from mypackage import greet
+          print(greet("World"))
+          ```
+
+          ## Test
+          ```bash
+          pytest
+          ```
+        note: "Documentation"

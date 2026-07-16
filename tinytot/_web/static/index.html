@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyToT</title>
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>TinyToT <span class="version" id="version"></span></h1>
+    <p class="subtitle">Tree of Thoughts Inference Server — no weights, no GPU, no network required.</p>
+    <p class="links">
+      <a href="/docs" target="_blank">Swagger UI</a>
+      <a href="/redoc" target="_blank">ReDoc</a>
+      <a href="https://github.com/guilt/tinytot" target="_blank">GitHub</a>
+      <a href="https://pypi.org/project/tinytot/" target="_blank">PyPI</a>
+    </p>
+  </header>
+
+  <section>
+    <h2>Try it</h2>
+    <div class="query-box">
+      <input type="text" id="prompt" placeholder="Ask something..." value="What is 15% of 240?">
+      <button onclick="query()">Send</button>
+    </div>
+    <pre id="response" class="response-box">Response will appear here...</pre>
+  </section>
+
+  <section>
+    <h2>API Endpoints</h2>
+    <table>
+      <thead><tr><th>Endpoint</th><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/generate</code></td><td>POST</td><td>Ollama-compatible text generation</td></tr>
+        <tr><td><code>/api/chat</code></td><td>POST</td><td>Ollama chat + history + tool support</td></tr>
+        <tr><td><code>/api/tags</code></td><td>GET</td><td>List available models</td></tr>
+        <tr><td><code>/api/show</code></td><td>POST</td><td>Model details</td></tr>
+        <tr><td><code>/api/pull</code></td><td>POST</td><td>No-op (compatibility)</td></tr>
+        <tr><td><code>/api/summarize</code></td><td>POST</td><td>Extractive document summarization</td></tr>
+        <tr><td><code>/api/agent</code></td><td>POST</td><td>Plan-execute-synthesise agent loop</td></tr>
+        <tr><td><code>/api/agent/tools</code></td><td>GET</td><td>List registered tools</td></tr>
+        <tr><td><code>/api/agent/tool</code></td><td>POST</td><td>Run a single tool by name</td></tr>
+        <tr><td><code>/api/agent/learn</code></td><td>POST</td><td>Write to Hermes Learning Journal</td></tr>
+        <tr><td><code>/api/quit</code></td><td>POST/GET</td><td>Graceful shutdown</td></tr>
+        <tr><td><code>/v1/chat/completions</code></td><td>POST</td><td>OpenAI-compatible (Hermes drop-in)</td></tr>
+        <tr><td><code>/v1/models</code></td><td>GET</td><td>OpenAI model list</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Quick Start</h2>
+    <pre class="code-block">pip install tinytot
+tinytot
+# → server running on http://localhost:11434
+
+curl http://localhost:11434/api/generate \
+  -d '{"model":"tinytot","prompt":"What is the square root of 144?","stream":false}'</pre>
+  </section>
+
+  <footer>
+    <p><a href="/docs">Swagger UI</a> · <a href="/redoc">ReDoc</a> · MIT License</p>
+  </footer>
+</div>
+<script>
+async function query() {
+  const prompt = document.getElementById('prompt').value;
+  const resp = document.getElementById('response');
+  resp.textContent = 'Thinking...';
+  try {
+    const r = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'tinytot', prompt, stream: false})
+    });
+    const data = await r.json();
+    resp.textContent = data.response || JSON.stringify(data, null, 2);
+  } catch (e) {
+    resp.textContent = 'Error: ' + e.message;
+  }
+}
+
+document.getElementById('version').textContent = 'v{{VERSION}}';
+</script>
+</body>
+</html>

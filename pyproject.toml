@@ -1,0 +1,165 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tinytot"
+description = "Tree of Thoughts inference server with Ollama API compatibility"
+readme = "README.md"
+requires-python = ">=3.8"
+dynamic = ["version"]
+license = {file = "LICENSE.md"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    # server
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic~=2.0",
+    "pyyaml>=6.0.0",
+    "python-frontmatter>=1.0.0,<1.1",
+    "markdown>=3.4.0",
+    "gitpython>=3.1.0",
+    # agent tools — HTTP / proxy
+    "httpx[socks]>=0.24.0",
+    "PySocks>=1.7.0",
+    "beautifulsoup4>=4.12.0",
+    # document extraction — PDF, Word, Excel, PowerPoint, Markdown, XML/HTML
+    "pypdf>=3.0.0",
+    "python-docx>=1.0.0",
+    "openpyxl>=3.1.0",
+    "python-pptx>=0.6.21",
+    "lxml>=4.9.0",
+    "ijson>=3.2.0",
+    "tabulate>=0.9.0",
+    # media / image / video
+    "Pillow>=10.0.0",
+    "yt-dlp>=2024.1.0",
+    # utilities
+    "chardet>=5.0.0",
+    # Python 3.8 backport for importlib.resources.files() (3.9+ built-in)
+    "importlib_resources>=5.0; python_version < '3.9'",
+]
+
+[project.scripts]
+tinytot         = "tinytot.server:main"
+tinytot-ingest  = "tinytot.ingest:main"
+tinytot-bench   = "tinytot.benchmark:main"
+tinytot-api-docs = "tinytot.cli.generate_api_docs:main"
+tinytot-check-data = "tinytot.tests.check_data_quality:main"
+tinytot-clone      = "tinytot.clone:_cli"
+
+[project.urls]
+Homepage = "https://github.com/guilt/tinytot"
+Repository = "https://github.com/guilt/tinytot"
+Documentation = "https://github.com/guilt/tinytot#readme"
+
+[project.optional-dependencies]
+translation = [
+    "googletrans>=4.0.0",
+    "argostranslate>=1.9.0",
+    "ctranslate2>=3.20.0",
+    "sentencepiece>=0.1.99",
+]
+dev = [
+    "setuptools",
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-asyncio",
+    "pytest-mock",
+    "pytest-xdist",
+    "coverage",
+    "httpx[socks]",
+    "mypy",
+    "types-beautifulsoup4",
+    "types-Pillow",
+    "ruff>=0.5.6",
+    "pre-commit",
+    "pre-commit-hooks",
+    "build",
+    "twine",
+    # docs
+    "sphinx",
+    "sphinx-autobuild",
+    "furo",
+    "myst-nb",
+    "sphinx-copybutton",
+    "sphinxcontrib-mermaid",
+    "sphinx-design",
+    "pyinstaller",
+]
+
+[tool.setuptools.packages.find]
+include = ["tinytot*"]
+exclude = ["tinytot/**/tests/*"]
+
+[tool.setuptools.package-data]
+"tinytot" = [
+    "py.typed",
+    "_data/categories/*.md",
+    "_data/knowledge/*.md",
+    "_data/schema/*.md",
+    "_data/codegen/*.yaml",
+    "_data/codegen/templates/*.md",
+    "_data/eval/*.md",
+    "_data/generate/*.yaml",
+    "_data/generate/creative/*.yaml",
+    "_data/benchmarks_baseline.json",
+    "_data/variants/*.yaml",
+    "_web/static/*",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "tinytot.__version__"}
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tinytot/tests"]
+
+[tool.coverage.run]
+omit = [
+    "tinytot/tests/*",
+    "tinytot/cli/*",
+    "tinytot/ingest.py",
+    "tinytot/benchmark.py",
+    "tinytot/compute.py",
+    "tinytot/_secrets_shim.py",
+    "tinytot/agent.py",
+    "tinytot/tools_ext.py",
+    "tinytot/codegen.py",
+    "tinytot/eval_summarize.py",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 80.0
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tinytot/tests/*" = ["F811"]
+# server.py: secrets shim must run before stdlib imports — E402 is intentional
+"tinytot/server.py" = ["E402"]

@@ -1,0 +1,63 @@
+# Static code analysis checks for tinytot/generate.py debug_inline handler
+#
+# Each entry is a pattern (Python regex) and a message describing the issue.
+# Patterns are applied to the pasted code text (IGNORECASE | DOTALL).
+# Add new patterns here — no code change required.
+
+checks:
+  - pattern: 'def\s+\w+\s*\([^)]*=\s*\[\s*\]'
+    message: "mutable default argument `=[]` — use `= None` and initialise inside the function body"
+
+  - pattern: 'def\s+\w+\s*\([^)]*=\s*\{\s*\}'
+    message: "mutable default argument `={}` — use `= None` and initialise inside the function body"
+
+  - pattern: 'except\s*:'
+    message: "bare `except:` catches all exceptions including KeyboardInterrupt — use `except Exception:`"
+
+  - pattern: 'except\s+Exception\s*:'
+    message: "broad `except Exception` swallows errors silently — at minimum log or re-raise"
+
+  - pattern: '\beval\s*\('
+    message: "`eval()` is a security risk — avoid evaluating untrusted strings"
+
+  - pattern: '\bexec\s*\('
+    message: "`exec()` can execute arbitrary code — use with extreme caution"
+
+  - pattern: '==\s*None\b'
+    message: "use `is None` not `== None`"
+
+  - pattern: '!=\s*None\b'
+    message: "use `is not None` not `!= None`"
+
+  - pattern: 'for\s+\w+\s+in\s+range\s*\(\s*len\s*\('
+    message: "prefer `enumerate()` over `range(len(...))`"
+
+  - pattern: 'global\s+\w+'
+    message: "`global` variable detected — consider passing as parameter or using a class"
+
+  - pattern: 'import\s+\*'
+    message: "wildcard import pollutes namespace — import specific names"
+
+  - pattern: 'time\.sleep\s*\(\s*\d'
+    message: "`time.sleep()` in potentially async context — check if `asyncio.sleep()` is needed"
+
+  - pattern: '\.read\(\)'
+    message: "reading entire file at once — consider iterating line by line for large files"
+
+  - pattern: 'f".*\{.*\}.*"\s*\+\s*'
+    message: "f-string mixed with string concatenation — use f-string throughout"
+
+  - pattern: 'open\s*\('
+    message: "`open()` without context manager — use `with open(...) as f:`"
+
+  - pattern: 'print\s*\('
+    message: "debug `print()` detected — use `logging` for production code"
+
+  - pattern: '\bpassword\s*=\s*[''"][^''"]+'
+    message: "hardcoded password — use environment variables or a secrets manager"
+
+  - pattern: '\bsecret\s*=\s*[''"][^''"]+'
+    message: "hardcoded secret — use environment variables or a secrets manager"
+
+  - pattern: '\bapi_key\s*=\s*[''"][^''"]+'
+    message: "hardcoded API key — use environment variables or a secrets manager"

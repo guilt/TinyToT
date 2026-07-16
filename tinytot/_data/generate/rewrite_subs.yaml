@@ -1,0 +1,84 @@
+# Register shift substitution tables for tinytot/generate.py
+#
+# Two sections: formal (applied when making text formal/professional/academic)
+# and casual (applied when making text casual/informal/friendly).
+# Each entry: pattern (Python regex) → replacement string.
+# Patterns are case-insensitive. Applied in order — put more specific first.
+
+formal:
+  - pattern: \bwanna\b
+    replacement: want to
+  - pattern: \bgonna\b
+    replacement: going to
+  - pattern: \bgotta\b
+    replacement: have to
+  - pattern: \bkinda\b
+    replacement: somewhat
+  - pattern: \blotta\b
+    replacement: a lot of
+  - pattern: \byeah\b
+    replacement: "yes"
+  - pattern: \bnope\b
+    replacement: "no"
+  - pattern: \bhey\b
+    replacement: hello
+  - pattern: \bbye\b
+    replacement: goodbye
+  - pattern: \bstuff\b
+    replacement: items
+  - pattern: \bthings\b
+    replacement: aspects
+  - pattern: \bget\b
+    replacement: obtain
+  - pattern: \blook into\b
+    replacement: investigate
+  - pattern: \btalk about\b
+    replacement: discuss
+  - pattern: \bkind of\b
+    replacement: somewhat
+  - pattern: \ba lot\b
+    replacement: significantly
+  - pattern: \bpretty\s+(?=\w)
+    replacement: "quite "
+  - pattern: \breally\b
+    replacement: very
+  - pattern: \bcan't\b
+    replacement: cannot
+  - pattern: \bwon't\b
+    replacement: will not
+  - pattern: \bdon't\b
+    replacement: do not
+  - pattern: \bisn't\b
+    replacement: is not
+
+casual:
+  - pattern: \bobtain\b
+    replacement: get
+  - pattern: \bpurchase\b
+    replacement: buy
+  - pattern: \bcommence\b
+    replacement: start
+  - pattern: \bterminate\b
+    replacement: end
+  - pattern: \butilize\b
+    replacement: use
+  - pattern: \bdemonstrate\b
+    replacement: show
+  - pattern: \bfacilitate\b
+    replacement: help
+  - pattern: \bplease\s+be\s+advised\b
+    replacement: note
+  - pattern: \bI\s+am\s+writing\s+to\b
+    replacement: I wanted to
+  - pattern: \bat\s+your\s+earliest\s+convenience\b
+    replacement: soon
+  - pattern: \bin\s+order\s+to\b
+    replacement: to
+  - pattern: \bprior\s+to\b
+    replacement: before
+  - pattern: \bsubsequent\s+to\b
+    replacement: after
+  - pattern: \bwith\s+regard\s+to\b
+    replacement: about
+  - pattern: \bpertaining\s+to\b
+    replacement: about

@@ -1,0 +1,27 @@
+# Contradiction polarity pairs for tinytot/generate.py multidoc handler
+#
+# If one statement contains `positive` and the other contains `negative`,
+# that pair is flagged as a contradiction signal.
+# Add domain-specific pairs here — no code change required.
+
+pairs:
+  - [increase, decrease]
+  - [rise, fall]
+  - [cause, "not cause"]
+  - [warming, cooling]
+  - [support, oppose]
+  - [help, harm]
+  - [always, never]
+  - [all, none]
+  - [can, cannot]
+  - [more, less]
+  - [positive, negative]
+  - [benefit, harm]
+  - [improve, worsen]
+  - [safe, dangerous]
+  - [effective, ineffective]
+  - [true, false]
+  - [valid, invalid]
+  - [expand, contract]
+  - [accelerate, decelerate]
+  - [strengthen, weaken]

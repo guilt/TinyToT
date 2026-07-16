@@ -1,0 +1,56 @@
+# Pythonic rewrite substitutions for tinytot/generate.py rewrite_code handler
+#
+# Each entry: pattern → replacement with an optional description label.
+# Patterns use Python multiline regex (re.MULTILINE). Applied in order.
+# The loader stores (compiled_pattern, replacement, description) triples.
+
+substitutions:
+  - pattern: '^(\s*)(\w+)\s*=\s*\[\]\s*\n\1for\s+(\w+)\s+in\s+(.+?):\s*\n\1\s+\2\.append\((.+?)\)\s*$'
+    flags: MULTILINE
+    replacement: '\1\2 = [\5 for \3 in \4]'
+    description: list comprehension
+
+  - pattern: 'if\s+(\w+)\s*==\s*True\s*:'
+    flags: MULTILINE
+    replacement: 'if \1:'
+    description: truthy check
+
+  - pattern: 'if\s+(\w+)\s*==\s*False\s*:'
+    flags: MULTILINE
+    replacement: 'if not \1:'
+    description: falsy check
+
+  - pattern: '(\w+)\s*=\s*\1\s*\+\s*1\b'
+    flags: MULTILINE
+    replacement: '\1 += 1'
+    description: "+= 1"
+
+  - pattern: '(\w+)\s*=\s*\1\s*-\s*1\b'
+    flags: MULTILINE
+    replacement: '\1 -= 1'
+    description: "-= 1"
+
+  - pattern: 'if\s+len\s*\(\s*(\w+)\s*\)\s*==\s*0\s*:'
+    flags: MULTILINE
+    replacement: 'if not \1:'
+    description: empty check
+
+  - pattern: 'if\s+len\s*\(\s*(\w+)\s*\)\s*>\s*0\s*:'
+    flags: MULTILINE
+    replacement: 'if \1:'
+    description: non-empty check
+
+  - pattern: 'return\s+True\s*\n(\s*)return\s+False'
+    flags: MULTILINE
+    replacement: 'return True\n\1# (simplify: return <condition> directly)'
+    description: boolean return
+
+  - pattern: '\bNone\s*==\s*(\w+)\b'
+    flags: MULTILINE
+    replacement: '\1 is None'
+    description: None comparison
+
+  - pattern: 'for\s+(\w+)\s+in\s+range\s*\(\s*len\s*\((\w+)\s*\)\s*\)\s*:\s*\n(\s+)(.+?)\[\1\]'
+    flags: MULTILINE
+    replacement: 'for \1, _item in enumerate(\2):\n\3_item'
+    description: enumerate

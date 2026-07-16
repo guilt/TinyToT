@@ -1,0 +1,648 @@
+# Code generation pattern registry.
+# Each entry maps a regex pattern to a template key.
+# Patterns are tested in order -- more specific patterns must come first.
+#
+# Format:
+#   - pattern: "regex string"   (Python re syntax, IGNORECASE always applied)
+#     key: template_key         (must match a file in templates/<key>.md)
+#     note: "optional human description"
+#
+# The isCodeRequest gate fires when ANY of these patterns matches,
+# even without "write/implement" phrasing.
+
+patterns:
+
+  # -------------------------------------------------------------------------
+  # High-priority specifics -- must come before generic patterns
+  # -------------------------------------------------------------------------
+  - pattern: '\bcycle\s+in\s+(?:a\s+)?linked\s+list\b|\bdetect\s+cycle\b|\bfloyd\b'
+    key: cycle_detection
+    note: "must be before linked_list generic"
+
+  - pattern: '\blevel.order\b|\bbfs\s+tree\b|\bbreadth.first\s+(?:search\s+)?tree\b'
+    key: bfs_level_order
+    note: "must be before bst generic"
+
+
+  # -------------------------------------------------------------------------
+  # Data structures
+  # -------------------------------------------------------------------------
+  - pattern: '\bstack\b.{0,30}\b(?:push|pop|peek)\b'
+    key: stack
+    note: Stack with push/pop/peek
+
+  - pattern: '\bqueue\b.{0,30}\b(?:enqueue|dequeue)\b'
+    key: queue
+    note: Queue with enqueue/dequeue
+
+  - pattern: '\blinked\s*list\b'
+    key: linked_list
+    note: Singly linked list
+
+  - pattern: '\bbinary\s*(?:search\s*)?tree\b'
+    key: bst
+    note: Binary search tree
+
+  - pattern: '\bmax\s*heap\b|\bmin\s*heap\b|\bpriority\s*queue\b'
+    key: heap
+    note: Heap / priority queue
+
+  # -------------------------------------------------------------------------
+  # Sorting algorithms
+  # -------------------------------------------------------------------------
+  - pattern: '\bmerge\s*sort\b'
+    key: merge_sort
+
+  - pattern: '\bquick\s*sort\b'
+    key: quick_sort
+
+  - pattern: '\bbubble\s*sort\b'
+    key: bubble_sort
+
+  - pattern: '\b(?:sort|order).{0,20}\b(?:list|array|numbers)\b'
+    key: sort_list
+    note: Generic sort -- less specific than named algorithms
+
+  # -------------------------------------------------------------------------
+  # Search and numeric algorithms
+  # -------------------------------------------------------------------------
+  - pattern: '\bbinary\s*search\b'
+    key: binary_search
+
+  - pattern: '\bfibonacci\b'
+    key: fibonacci
+
+  - pattern: '\bfactorial\b'
+    key: factorial
+
+  - pattern: '\bpalindrome\b'
+    key: palindrome
+
+  - pattern: '\btwo\s*sum\b|\btwosum\b'
+    key: two_sum
+
+  - pattern: '\bfind.{0,20}\b(?:max|maximum)\b'
+    key: find_max
+
+  - pattern: '\bfind.{0,20}\b(?:min|minimum)\b'
+    key: find_min
+
+  - pattern: '\breverse.{0,20}\b(?:string|str|list|array)\b'
+    key: reverse_string
+
+  - pattern: '\bflatten.{0,20}\b(?:list|array|nested)\b'
+    key: flatten
+
+  - pattern: '\bcount.{0,30}\b(?:words?|occurrences?|frequency)\b'
+    key: word_count
+
+  # -------------------------------------------------------------------------
+  # Python-specific patterns
+  # -------------------------------------------------------------------------
+  - pattern: '\bdecorator\b.{0,30}\b(?:log|cache|retry|time)\b'
+    key: decorator_log
+    note: Specific decorator types -- check before generic decorator
+
+  - pattern: '\bdecorator\b'
+    key: decorator_generic
+
+  - pattern: '\blist\s*comprehension\b|\bfilter.{0,20}\beven\b'
+    key: list_comprehension
+
+  - pattern: '\bdataclass\b'
+    key: dataclass
+
+  - pattern: '\bcontext\s*manager\b|\bwith\s*statement\b'
+    key: context_manager
+
+  - pattern: '\bgenerator\b.{0,30}\b(?:yield|infinite|sequence)\b'
+    key: generator
+
+  # -------------------------------------------------------------------------
+  # SQL
+  # -------------------------------------------------------------------------
+  - pattern: '\bselect\b.{0,40}\b(?:where|from|join)\b'
+    key: sql_select
+
+  - pattern: '\bjoin\b.{0,30}\b(?:tables?|inner|left|right|query|users?|orders?)\b'
+    key: sql_join
+
+  - pattern: '\binsert\b.{0,30}\binto\b'
+    key: sql_insert
+
+  - pattern: '\bcreate\s*table\b'
+    key: sql_create
+
+  # -------------------------------------------------------------------------
+  # OOP patterns
+  # -------------------------------------------------------------------------
+  - pattern: '\bclass\b.{0,40}\b(?:person|user|product|car|animal|student)\b'
+    key: class_generic
+    note: Generic class for common domain objects
+
+  - pattern: '\bsingleton\b'
+    key: singleton
+
+  - pattern: '\bobserver\s*pattern\b|\bevent\s*listener\b'
+    key: observer
+
+  # -------------------------------------------------------------------------
+  # New canonical algorithms
+  # -------------------------------------------------------------------------
+  - pattern: '\bgcd\b|\bgreatest\s*common\s*divisor\b|\blcm\b|\bleast\s*common\s*multiple\b'
+    key: gcd
+
+  - pattern: '\bis\s+(?:a\s+)?prime\b|\bcheck\s+(?:if\s+)?prime\b|\bprimality\b'
+    key: is_prime
+
+  - pattern: '\bsieve\b|\ball\s+prime\b|\bprime\s+numbers?\s+up\s+to\b|\bprimes?\s+up\s+to\b'
+    key: is_prime
+
+  - pattern: '\bfizzbuzz\b|\bfizz\s*buzz\b'
+    key: fizzbuzz
+
+  - pattern: '\bkadane\b|\bmaximum\s+subarray\b|\bmax\s+subarray\b|\bcontiguous\s+subarray\b'
+    key: kadane
+
+  - pattern: '\bcoin\s+change\b|\bminimum\s+coins?\b|\bfewest\s+coins?\b'
+    key: coin_change
+
+  - pattern: '\blcs\b|\blongest\s+common\s+subsequence\b'
+    key: lcs
+
+  - pattern: '\bknapsack\b|\b0/1\s+knapsack\b'
+    key: knapsack
+
+  - pattern: '\bclimb\s+stairs?\b|\bstaircase\s+problem\b|\bways?\s+to\s+climb\b'
+    key: climb_stairs
+
+  - pattern: '\bcycle\s+in\s+(?:a\s+)?linked\s+list\b|\bdetect\s+cycle\b|\bfloyd\b'
+    key: cycle_detection
+
+  - pattern: '\blevel.order\b|\bbfs\s+tree\b|\bbreadth.first\s+(?:search\s+)?tree\b'
+    key: bfs_level_order
+
+  # -------------------------------------------------------------------------
+  # Compositional problems
+  # -------------------------------------------------------------------------
+  - pattern: '\bmedian\b'
+    key: median
+
+  - pattern: '\bsecond\s+largest\b|\bsecond\s+maximum\b|\bsecond\s+biggest\b'
+    key: second_largest
+
+  - pattern: '\banagrams?\b'
+    key: anagram
+
+  - pattern: '\bduplicates?\b|\brepeated\s+elements?\b'
+    key: find_duplicates
+
+  - pattern: '\breverse\s+words\b|\breverse\s+(?:the\s+)?order\s+of\s+words\b'
+    key: reverse_words
+
+  - pattern: '\bpower\s+set\b|\ball\s+subsets?\b'
+    key: power_set
+
+  - pattern: '\bmost\s+frequent\b|\bmost\s+common\b|\bmode\b'
+    key: most_frequent
+
+  # -------------------------------------------------------------------------
+
+  # -------------------------------------------------------------------------
+  # Problems from guilt.github.io/Code (149 problems)
+  # -------------------------------------------------------------------------
+  - pattern: '\bperimeter\b.*\bisland\b'
+    key: perimeter_island
+    note: "Perimeter Island"
+  - pattern: '\binterval\b.*\blist\b.*\bintersections\b'
+    key: interval_list_intersections
+    note: "Interval List Intersections"
+  - pattern: '\bmaze\b.*\bgrid\b.*\bhealth\b'
+    key: maze_grid_with_health_orbs
+    note: "Maze Grid With Health Orbs"
+  - pattern: '\bsudoku\b'
+    key: sudoku
+    note: "Sudoku"
+  - pattern: '\blinked\b.*\blist\b.*\bcycle\b'
+    key: linked_list_cycle
+    note: "Linked List Cycle"
+  - pattern: '\bmin\b.*\bstack\b'
+    key: min_stack
+    note: "Min Stack"
+  - pattern: '\brandom1-5to1-7\b'
+    key: random1_5to1_7
+    note: "Random1-5to1-7"
+  - pattern: '\bway\b.*\bpartition\b'
+    key: way_partition
+    note: "Way Partition"
+  - pattern: '\bwords\b.*\bformed\b.*\bcharacters\b'
+    key: find_words_that_can_be_formed_by_characters
+    note: "Find Words That Can Be Formed By Characters"
+  - pattern: '\bway\b.*\bpartition\b.*\border\b'
+    key: way_partition_order
+    note: "Way Partition Order"
+  - pattern: '\badd\b.*\bnumbers\b.*\blinked\b'
+    key: add_two_numbers_linked_list
+    note: "Add Two Numbers Linked List"
+  - pattern: '\bsubtree\b.*\banother\b.*\btree\b'
+    key: subtree_of_another_tree
+    note: "Subtree Of Another Tree"
+  - pattern: '\bisomorphic\b.*\bstrings\b'
+    key: isomorphic_strings
+    note: "Isomorphic Strings"
+  - pattern: '\bplace\b.*\bflowers\b'
+    key: can_place_flowers
+    note: "Can Place Flowers"
+  - pattern: '\bmerge\b.*\bbinary\b.*\btrees\b'
+    key: merge_binary_trees
+    note: "Merge Binary Trees"
+  - pattern: '\bbinary\b.*\btree\b.*\ball\b'
+    key: binary_tree_all_paths
+    note: "Binary Tree All Paths"
+  - pattern: '\bbest\b.*\btime\b.*\bbuy\b'
+    key: best_time_to_buy_and_sell_stock
+    note: "Best Time To Buy And Sell Stock"
+  - pattern: '\bhouse\b.*\brobber\b'
+    key: house_robber
+    note: "House Robber"
+  - pattern: '\bmeeting\b.*\brooms\b'
+    key: meeting_rooms_ii
+    note: "Meeting Rooms I I"
+  - pattern: '\bgraph\b.*\bvalid\b.*\btree\b'
+    key: graph_valid_tree
+    note: "Graph Valid Tree"
+  - pattern: '\bminimum\b.*\bpath\b.*\bsum\b'
+    key: minimum_path_sum
+    note: "Minimum Path Sum"
+  - pattern: '\bleftmost\b.*\bcolumn\b.*\bone\b'
+    key: leftmost_column_with_one
+    note: "Leftmost Column With One"
+  - pattern: '\belements\b.*\bcontaminated\b.*\bbinary\b'
+    key: find_elements_in_contaminated_binary_tree
+    note: "Find Elements In Contaminated Binary Tree"
+  - pattern: '\bminimum\b.*\bnumber\b.*\bswaps\b'
+    key: minimum_number_of_swaps
+    note: "Minimum Number Of Swaps"
+  - pattern: '\binterleaved\b.*\bstring\b'
+    key: is_interleaved_string
+    note: "Is Interleaved String"
+  - pattern: '\breverse\b.*\blinked\b.*\blist\b'
+    key: reverse_linked_list_in_groups
+    note: "Reverse Linked List In Groups"
+  - pattern: '\blongest\b.*\bconsecutive\b.*\bsequence\b'
+    key: longest_consecutive_sequence
+    note: "Longest Consecutive Sequence"
+  - pattern: '\bkth\b.*\bsmallest\b.*\bpair\b'
+    key: kth_smallest_pair_distance
+    note: "Kth Smallest Pair Distance"
+  - pattern: '\bmeetings\b.*\bmaximum\b.*\boverlap\b'
+    key: n_meetings_maximum_overlap
+    note: "N Meetings Maximum Overlap"
+  - pattern: '\bfish\b.*\bbait\b'
+    key: fish_and_bait
+    note: "Fish And Bait"
+  - pattern: '\blargest\b.*\bnumber\b'
+    key: largest_number
+    note: "Largest Number"
+  - pattern: '\badd\b.*\bbinary\b.*\bnumbers\b'
+    key: add_binary_numbers
+    note: "Add Binary Numbers"
+  - pattern: '\breverse\b.*\binteger\b'
+    key: reverse_integer
+    note: "Reverse Integer"
+  - pattern: '\bmaximal\b.*\bsquare\b'
+    key: maximal_square
+    note: "Maximal Square"
+  - pattern: '\brange\b.*\baddition\b'
+    key: range_addition
+    note: "Range Addition"
+  - pattern: '\bfirst\b.*\bunique\b.*\bcharacter\b'
+    key: first_unique_character_in_a_string
+    note: "First Unique Character In A String"
+  - pattern: '\ball\b.*\banagrams\b.*\bstring\b'
+    key: find_all_anagrams_in_a_string
+    note: "Find All Anagrams In A String"
+  - pattern: '\bstring\b.*\bcompression\b'
+    key: string_compression
+    note: "String Compression"
+  - pattern: '\bminimum\b.*\bmoves\b.*\bequal\b'
+    key: minimum_moves_to_equal_array_elements
+    note: "Minimum Moves To Equal Array Elements"
+  - pattern: '\bconsecutive\b.*\bnumbers\b.*\bsum\b'
+    key: consecutive_numbers_sum
+    note: "Consecutive Numbers Sum"
+  - pattern: '\bbackspace\b.*\bstring\b.*\bcompare\b'
+    key: backspace_string_compare
+    note: "Backspace String Compare"
+  - pattern: '\blast\b.*\bstone\b.*\bweight\b'
+    key: last_stone_weight
+    note: "Last Stone Weight"
+  - pattern: '\bmerge\b.*\blinked\b.*\blists\b'
+    key: merge_k_linked_lists
+    note: "Merge K Linked Lists"
+  - pattern: '\bcache\b'
+    key: lru_cache
+    note: "L R U Cache"
+  - pattern: '\bdistribute\b.*\bmoney\b.*\bmaximum\b'
+    key: distribute_money_to_maximum_children
+    note: "Distribute Money To Maximum Children"
+  - pattern: '\bsearch\b.*\brotated\b.*\bsorted\b'
+    key: search_in_rotated_sorted_array
+    note: "Search In Rotated Sorted Array"
+  - pattern: '\breplace\b.*\bnth\b.*\bconsonant\b'
+    key: replace_nth_consonant
+    note: "Replace Nth Consonant"
+  - pattern: '\bthree\b.*\bsum\b.*\bexact\b'
+    key: three_sum_exact_target
+    note: "Three Sum Exact Target"
+  - pattern: '\bgraph\b.*\bbipartite\b'
+    key: is_graph_bipartite
+    note: "Is Graph Bipartite"
+  - pattern: '\bmerge\b.*\bintervals\b'
+    key: merge_intervals
+    note: "Merge Intervals"
+  - pattern: '\btrapping\b.*\brain\b.*\bwater\b'
+    key: trapping_rain_water
+    note: "Trapping Rain Water"
+  - pattern: '\bselect\b.*\bkth\b.*\blargest\b'
+    key: select_kth_largest
+    note: "Select Kth Largest"
+  - pattern: '\bweighted\b.*\bnumber\b.*\bpicking\b'
+    key: weighted_number_picking_binary_search
+    note: "Weighted Number Picking Binary Search"
+  - pattern: '\bminimum\b.*\bremove\b.*\bparantheses\b'
+    key: minimum_remove_parantheses
+    note: "Minimum Remove Parantheses"
+  - pattern: '\bremove\b.*\bduplicates\b.*\bstack\b'
+    key: remove_duplicates_stack
+    note: "Remove Duplicates Stack"
+  - pattern: '\bmaximum\b.*\bswap\b'
+    key: maximum_swap
+    note: "Maximum Swap"
+  - pattern: '\bmath\b.*\bcalculator\b'
+    key: math_calculator
+    note: "Math Calculator"
+  - pattern: '\bcontinous\b.*\bsubarray\b.*\bsum\b'
+    key: continous_subarray_sum_check
+    note: "Continous Subarray Sum Check"
+  - pattern: '\bvertical\b.*\border\b.*\btree\b'
+    key: vertical_order_tree
+    note: "Vertical Order Tree"
+  - pattern: '\btoeplitz\b.*\bmatrix\b'
+    key: toeplitz_matrix
+    note: "Toeplitz Matrix"
+  - pattern: '\bword\b.*\bbreak2\b'
+    key: word_break2
+    note: "Word Break2"
+  - pattern: '\bright\b.*\bsided\b.*\bview\b'
+    key: right_sided_view
+    note: "Right Sided View"
+  - pattern: '\bconvert\b.*\btto\b.*\bsorted\b'
+    key: convert_bs_tto_sorted_dll
+    note: "Convert B S Tto Sorted D L L"
+  - pattern: '\bsum\b.*\bwithin\b'
+    key: bst_sum_within_lr
+    note: "B S T Sum Within L R"
+  - pattern: '\bverifying\b.*\balien\b.*\bdictionary\b'
+    key: verifying_alien_dictionary
+    note: "Verifying Alien Dictionary"
+  - pattern: '\bmin\b.*\badd\b.*\bmake\b'
+    key: min_add_to_make_valid_parens
+    note: "Min Add To Make Valid Parens"
+  - pattern: '\blexicographically\b.*\bsort\b.*\bnumbers\b'
+    key: lexicographically_sort_numbers
+    note: "Lexicographically Sort Numbers"
+  - pattern: '\bcourse\b.*\bschedule\b'
+    key: course_schedule
+    note: "Course Schedule"
+  - pattern: '\bdebounce\b'
+    key: debounce
+    note: "Debounce"
+  - pattern: '\bminimum\b.*\bremove\b.*\bparantheses\b'
+    key: minimum_remove_parantheses_all_results
+    note: "Minimum Remove Parantheses All Results"
+  - pattern: '\boriginal\b.*\balien\b.*\bdictionary\b'
+    key: original_alien_dictionary
+    note: "Original Alien Dictionary"
+  - pattern: '\btop\b.*\bfrequent\b.*\belements\b'
+    key: top_k_frequent_elements
+    note: "Top K Frequent Elements"
+  - pattern: '\bbalance\b.{0,30}\b(?:bst|binary\s+search\s+tree|binary\s+tree)\b|\b(?:bst|binary\s+tree)\b.{0,30}\bbalance\b'
+    key: balance_bst
+    note: "Balance BST -- requires tree context to avoid matching bank balance"
+  - pattern: '\bgroup\b.*\bencoded\b.*\bstrings\b'
+    key: group_encoded_strings
+    note: "Group Encoded Strings"
+  - pattern: '\binsert\b.*\bcircular\b.*\blist\b'
+    key: insert_into_circular_list
+    note: "Insert Into Circular List"
+  - pattern: '\bvalid\b.*\bpalindrome\b.*\bone\b'
+    key: valid_palindrome_one_deletion
+    note: "Valid Palindrome One Deletion"
+  - pattern: '\bshortest\b.*\bdistance\b.*\ball\b'
+    key: shortest_distance_from_all_buildings
+    note: "Shortest Distance From All Buildings"
+  - pattern: '\bminimum\b.*\bcost\b.*\btickets\b'
+    key: minimum_cost_for_tickets
+    note: "Minimum Cost For Tickets"
+  - pattern: '\bminimum\b.*\bpushes\b.*\bbox\b'
+    key: minimum_pushes_box
+    note: "Minimum Pushes Box"
+  - pattern: '\bmerge\b.*\baccounts\b.*\bunion\b'
+    key: merge_accounts_union_find
+    note: "Merge Accounts Union Find"
+  - pattern: '\bnumber\b.*\bwords\b'
+    key: number_to_words
+    note: "Number To Words"
+  - pattern: '\bclosest\b.*\bvalue\b'
+    key: closest_value_in_bst
+    note: "Closest Value In B S T"
+  - pattern: '\bmissing\b.*\belement\b'
+    key: missing_element
+    note: "Missing Element"
+  - pattern: '\bdistance\b.*\bnodes\b'
+    key: k_distance_nodes
+    note: "K Distance Nodes"
+  - pattern: '\breorganize\b.*\bstring\b'
+    key: reorganize_string
+    note: "Reorganize String"
+  - pattern: '\bsorted\b.*\bpoints\b'
+    key: k_sorted_points
+    note: "k Sorted Points"
+  - pattern: '\bleast\b.*\binterval\b.*\btasks\b'
+    key: least_interval_for_n_tasks
+    note: "Least Interval For N Tasks"
+  - pattern: '\bvalid\b.*\bpalindrome\b'
+    key: is_k_valid_palindrome
+    note: "Is K Valid Palindrome"
+  - pattern: '\bcustom\b.*\bsort\b.*\bstring\b'
+    key: custom_sort_string
+    note: "Custom Sort String"
+  - pattern: '\blongest\b.*\bsubstring\b.*\bdistinct\b'
+    key: longest_substring_with_k_distinct
+    note: "Longest Substring With K Distinct"
+  - pattern: '\bmedian\b.*\bsorted\b.*\barrays\b'
+    key: median_of_two_sorted_arrays
+    note: "Median Of Two Sorted Arrays"
+  - pattern: '\bconvert\b.*\bzig\b.*\bzag\b'
+    key: convert_zig_zag_string
+    note: "Convert Zig Zag String"
+  - pattern: '\bcheck\b.*\bnumber\b.*\bpalindrome\b'
+    key: check_if_number_is_palindrome
+    note: "Check If Number Is Palindrome"
+  - pattern: '\blongest\b.*\bcommon\b.*\bprefix\b'
+    key: longest_common_prefix
+    note: "Longest Common Prefix"
+  - pattern: '\bthree\b.*\bsum\b.*\bclosest\b'
+    key: three_sum_closest
+    note: "Three Sum Closest"
+  - pattern: '\binorder\b.*\btraversal\b.*\bstack\b'
+    key: inorder_traversal_stack
+    note: "Inorder Traversal Stack"
+  - pattern: '\ball\b.*\bsub\b.*\barrays\b'
+    key: find_all_sub_arrays_sum_tok
+    note: "Find All Sub Arrays Sum Tok"
+  - pattern: '\bsum\b'
+    key: bst_two_sum
+    note: "B S T Two Sum"
+  - pattern: '\bhamming\b.*\bdistance\b'
+    key: hamming_distance
+    note: "Hamming Distance"
+  - pattern: '\bshuffle\b.*\bdeck\b.*\bcards\b'
+    key: shuffle_deck_of_cards
+    note: "Shuffle Deck Of Cards"
+  - pattern: '\breverse\b.*\bwords\b.*\bstring\b'
+    key: reverse_words_in_string
+    note: "Reverse Words In String"
+  - pattern: '\bsparse\b.*\bmatrix\b'
+    key: sparse_matrix
+    note: "Sparse Matrix"
+  - pattern: '\breg\b.*\bmatcher\b'
+    key: reg_ex_matcher
+    note: "Reg Ex Matcher"
+  - pattern: '\bletter\b.*\bcombinations\b.*\bphone\b'
+    key: letter_combinations_of_phone_number
+    note: "Letter Combinations Of Phone Number"
+  - pattern: '\bremove\b.*\bnth\b.*\bend\b'
+    key: remove_nth_from_end_of_linked_list
+    note: "Remove Nth From End Of Linked List"
+  - pattern: '\bparanthesis\b.*\bmatching\b'
+    key: paranthesis_matching
+    note: "Paranthesis Matching"
+  - pattern: '\bgenerate\b.*\bparanthesis\b'
+    key: generate_n_paranthesis
+    note: "Generate N Paranthesis"
+  - pattern: '\badd\b.*\bnumbers\b.*\bstring\b'
+    key: add_two_numbers_string
+    note: "Add Two Numbers String"
+  - pattern: '\breverse\b.*\blinked\b.*\blist\b'
+    key: reverse_linked_list
+    note: "Reverse Linked List"
+  - pattern: '\btopological\b.*\bsort\b'
+    key: topological_sort
+    note: "Topological Sort"
+  - pattern: '\bnext\b.*\bpermutation\b'
+    key: next_permutation
+    note: "Next Permutation"
+  - pattern: '\blargest\b.*\bcontiguous\b.*\bsum\b'
+    key: largest_contiguous_sum
+    note: "Largest Contiguous Sum"
+  - pattern: '\bmaximum\b.*\bsub\b.*\brectangle\b'
+    key: maximum_sub_rectangle
+    note: "Maximum Sub Rectangle"
+  - pattern: '\bmedian\b.*\barray\b'
+    key: median_of_array
+    note: "Median Of Array"
+  - pattern: '\bfactorial\b.*\btrailing\b.*\bzeroes\b'
+    key: factorial_trailing_zeroes
+    note: "Factorial Trailing Zeroes"
+  - pattern: '\blongest\b.*\bincreasing\b.*\bsubsequence\b'
+    key: longest_increasing_subsequence
+    note: "Longest Increasing Subsequence"
+  - pattern: '\blongest\b.*\bcommon\b.*\bsubsequence\b'
+    key: longest_common_subsequence
+    note: "Longest Common Subsequence"
+  - pattern: '\brobot\b.*\bpath\b.*\bfinder\b'
+    key: robot_path_finder
+    note: "Robot Path Finder"
+  - pattern: '\biterator\b.*\binorder\b.*\btraversal\b'
+    key: bst_iterator_inorder_traversal
+    note: "B S T Iterator Inorder Traversal"
+  - pattern: '\bkth\b.*\blexicographical\b.*\bpath\b'
+    key: kth_lexicographical_path_in_grid
+    note: "Kth Lexicographical Path In Grid"
+  - pattern: '\bpalindrome\b.*\bpermutation\b.*\bpossible\b'
+    key: palindrome_permutation_possible
+    note: "Palindrome Permutation Possible"
+  - pattern: '\blargest\b.*\brectangle\b.*\bhistogram\b'
+    key: largest_rectangle_histogram
+    note: "Largest Rectangle Histogram"
+  - pattern: '\bmirror\b.*\bbinary\b.*\btree\b'
+    key: mirror_binary_tree
+    note: "Mirror Binary Tree"
+  - pattern: '\blongest\b.*\bcommon\b.*\bprefix\b'
+    key: longest_common_prefix_trie
+    note: "Longest Common Prefix Trie"
+  - pattern: '\begg\b.*\bdrop\b.*\bproblem\b'
+    key: egg_drop_problem
+    note: "Egg Drop Problem"
+  - pattern: '\bcount\b.*\bdigit2s\b'
+    key: count_digit2s
+    note: "Count Digit2s"
+  - pattern: '\bsubset\b.*\bsum\b'
+    key: subset_sum
+    note: "Subset Sum"
+  - pattern: '\bequal\b.*\bpartition\b.*\bpossible\b'
+    key: equal_partition_possible
+    note: "Equal Partition Possible"
+  - pattern: '\bdivide\b.*\bnumbers\b'
+    key: divide_two_numbers
+    note: "Divide Two Numbers"
+  - pattern: '\beulerian\b.*\bpath\b'
+    key: eulerian_path
+    note: "Eulerian Path"
+  - pattern: '\bhierholzers\b.*\balgorithm\b'
+    key: hierholzers_algorithm
+    note: "Hierholzers Algorithm"
+  - pattern: '\bedit\b.*\bdistance\b'
+    key: edit_distance
+    note: "Edit Distance"
+  - pattern: '\bminimum\b.*\bwindow\b.*\bsubstring\b'
+    key: minimum_window_substring
+    note: "Minimum Window Substring"
+  - pattern: '\bpalindrome\b.*\blinked\b.*\blist\b'
+    key: palindrome_as_linked_list
+    note: "Palindrome As Linked List"
+  - pattern: '\bsunset\b.*\bview\b'
+    key: sunset_view
+    note: "Sunset View"
+  - pattern: '\bconstruct2\b.*\bbuildings\b.*\bspace\b'
+    key: construct2_buildings_with_space
+    note: "Construct2 Buildings With Space"
+  - pattern: '\bsearch2\b.*\bmatrix\b'
+    key: search2_d_matrix
+    note: "Search2 D Matrix"
+  - pattern: '\brod\b.*\bcutting\b'
+    key: rod_cutting
+    note: "Rod Cutting"
+  - pattern: '\bwinning\b.*\blottery\b'
+    key: winning_lottery
+    note: "Winning Lottery"
+
+  # Aliases for pattern-match gaps
+  - pattern: '\bllrb\b|\bleft.leaning\s+red.black\b'
+    key: llrb
+    note: "Left-Leaning Red-Black Tree"
+  - pattern: '\brandom.*5.*7\b|\bextend.*random\b'
+    key: random1_5to1_7
+    note: "Random 1-5 to 1-7"
+  - pattern: '\bclimbing\s+stairs?\b|\bclimb\s+stairs?\b'
+    key: climb_stairs
+  - pattern: '\bcoin\s+change\s*ii\b|\bcoin\s+change\s+2\b|\bways?\s+to\s+make\s+change\b'
+    key: coin_change
+  - pattern: '\bmaximum\s+subarray\b|\blargest\s+contiguous\b|\bmax\s+sum\s+subarray\b'
+    key: kadane
+  - pattern: '\bhouse\s+robber\b|\brob\s+houses\b'
+    key: house_robber
+  - pattern: '\bfloyd\b|\btortoise\s+and\s+hare\b'
+    key: cycle_detection

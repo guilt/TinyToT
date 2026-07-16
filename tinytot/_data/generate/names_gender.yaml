@@ -1,0 +1,49 @@
+# Gender name heuristics for tinytot/compute.py coreference resolver
+#
+# Used only as a fallback when pronoun gender is ambiguous.
+# Not exhaustive — just common English first names.
+# Add names here — no code change required.
+
+female:
+  - alice
+  - mary
+  - sarah
+  - emma
+  - anna
+  - lisa
+  - jane
+  - kate
+  - emily
+  - jessica
+  - jennifer
+  - amanda
+  - ashley
+  - carol
+  - diana
+  - helen
+  - laura
+  - sophie
+  - olivia
+  - claire
+
+male:
+  - bob
+  - john
+  - james
+  - david
+  - michael
+  - robert
+  - william
+  - richard
+  - charles
+  - george
+  - thomas
+  - mark
+  - paul
+  - peter
+  - steven
+  - kevin
+  - brian
+  - daniel
+  - matthew
+  - andrew

@@ -1,0 +1,38 @@
+# Comparative adjective pairs for tinytot/compute.py transitive logic solver
+#
+# Each entry: comparative form used in prompts.
+# The solver detects "A is <adjective> than B" chains.
+# Add domain-specific comparatives here — no code change required.
+
+adjectives:
+  - taller
+  - shorter
+  - older
+  - younger
+  - heavier
+  - lighter
+  - faster
+  - slower
+  - bigger
+  - smaller
+  - greater
+  - lesser
+  - higher
+  - lower
+  - stronger
+  - weaker
+  - richer
+  - poorer
+  - smarter
+  - louder
+  - quieter
+  - warmer
+  - cooler
+  - brighter
+  - darker
+  - wider
+  - narrower
+  - deeper
+  - shallower
+  - longer
+  - shorter

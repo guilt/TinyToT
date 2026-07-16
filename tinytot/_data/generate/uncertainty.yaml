@@ -1,0 +1,21 @@
+# Calibrated uncertainty topics for tinytot/generate.py uncertainty handler
+#
+# Prompts about these topics trigger an honest "I don't know" response.
+# Add or remove topics here — no code change required.
+
+topics:
+  - stock
+  - market
+  - price
+  - bitcoin
+  - crypto
+  - cryptocurrency
+  - election
+  - weather
+  - temperature
+  - forecast
+  - future
+  - tomorrow
+  - prediction
+  - odds
+  - probability

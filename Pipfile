@@ -1,0 +1,64 @@
+[packages]
+# server
+fastapi = ">=0.104.0"
+uvicorn = {extras = ["standard"], version = ">=0.24.0"}
+pydantic = "~=2.0"
+pyyaml = ">=6.0.0"
+python-frontmatter = ">=1.0.0,<1.1"
+markdown = ">=3.4.0"
+gitpython = ">=3.1.0"
+# agent tools — HTTP / proxy
+httpx = {extras = ["socks"], version = ">=0.24.0"}
+PySocks = ">=1.7.0"
+beautifulsoup4 = ">=4.12.0"
+# document extraction — PDF, Word, Excel, PowerPoint, Markdown, XML/HTML
+pypdf = ">=3.0.0"
+python-docx = ">=1.0.0"
+openpyxl = ">=3.1.0"
+python-pptx = ">=0.6.21"
+lxml = ">=4.9.0"
+ijson = ">=3.2.0"
+tabulate = ">=0.9.0"
+# translation (optional — `pip install tinytot[translation]` on platforms with ctranslate2 support)
+# media / image / video
+Pillow = ">=10.0.0"
+yt-dlp = ">=2024.1.0"
+# utilities
+chardet = ">=5.0.0"
+# Python 3.8 backport for importlib.resources.files() (included in 3.9+)
+importlib_resources = ">=5.0"
+
+[dev-packages]
+# Optional translation backends — `pipenv run pip install tinytot[translation]`
+googletrans = ">=4.0.0"
+argostranslate = ">=1.9.0"
+ctranslate2 = ">=3.20.0"
+sentencepiece = ">=0.1.99"
+
+setuptools = "*"
+pytest = ">=6.0"
+pytest-cov = "*"
+pytest-asyncio = "*"
+pytest-mock = "*"
+pytest-xdist = "*"
+coverage = "*"
+httpx = {extras = ["socks"], version = "*"}
+mypy = "*"
+types-beautifulsoup4 = "*"
+types-Pillow = "*"
+ruff = ">=0.5.6"
+pre-commit = "*"
+pre-commit-hooks = "*"
+build = "*"
+twine = "*"
+sphinx = "*"
+sphinx-autobuild = "*"
+furo = "*"
+myst-nb = "*"
+sphinx-copybutton = "*"
+sphinxcontrib-mermaid = "*"
+sphinx-design = "*"
+pyinstaller = "*"
+
+[requires]
+python_version = "3.8"
