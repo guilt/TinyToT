@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -94,7 +95,8 @@ SCORE_TOOL_RESPONSE: float = 0.3
 
 IndexEntry = Tuple[str, str, str]  # (category, filename, title)
 
-MAX_CHAINS_PER_CATEGORY = 15  # cap per category so large corpora don't dominate routing
+MAX_CHAINS_PER_CATEGORY = int(os.environ.get("TINYTOT_MAX_CHAINS", "10000"))
+# cap per category so large corpora don't dominate routing
 
 # Weight applied to keyword text when building chain index vectors.
 # Prepending keywords N times effectively scales their TF contribution.
@@ -146,12 +148,20 @@ def buildChainIndex(
     Category keywords (from YAML frontmatter) are prepended to every chain
     in that category, repeated _KEYWORD_REPEAT times so that query tokens
     matching a category keyword provide a meaningful routing boost.
+
+    Files whose name starts with ``opentraces_`` are excluded from the
+    routing index so that auto-ingested trace data does not distort
+    category routing.  Those chains are available for reasoning via the
+    separate ``loadAugmentChains`` function.
     """
     categories = getCategories(categoryDir)
     entries: List[IndexEntry] = []
     raw_texts: List[str] = []
 
     for category, filename in categories.items():
+        # Skip OpenTraces files — they are for reasoning only, not routing
+        if filename.startswith("opentraces_"):
+            continue
         chains = loadReasoningChains(filename, categoryDir)
         keywords = _loadCategoryKeywords(filename, categoryDir)
         # Repeat keywords to amplify their TF weight in the chain vectors
@@ -185,6 +195,8 @@ def buildChainMeta(
     total_tokens = 0
 
     for category, filename in categories.items():
+        if filename.startswith("opentraces_"):
+            continue
         chains = loadReasoningChains(filename, categoryDir)
         keywords = _loadCategoryKeywords(filename, categoryDir)
         for title, thoughts, meta_dict in chains[:MAX_CHAINS_PER_CATEGORY]:
@@ -619,7 +631,7 @@ def categorizePrompt(prompt: str, categoryDir: Path = CATEGORY_DIR) -> str:
 
     Uses the proven single-head TF-IDF approach for routing — multi-head
     scoring is applied to knowledge passage retrieval (findKnowledgeAnswer)
-    where it improves precision, but routing accuracy is already 100% with
+    where it improves precision, but routing accuracy is already high with
     single-head TF-IDF + keyword repeat boosting and multi-head adds noise.
     """
     entries, idf, tfVecs = buildChainIndex(categoryDir)
@@ -655,7 +667,7 @@ def categorizePrompt(prompt: str, categoryDir: Path = CATEGORY_DIR) -> str:
 
 # SCORE_TOOL_RESPONSE is defined with the other retrieval thresholds above.
 SCORE_MAX = 1.0
-MAX_EVALUATED_PATHS = 3
+MAX_EVALUATED_PATHS = int(os.environ.get("TINYTOT_MAX_PATHS", "10"))
 
 
 def scoreChain(

@@ -1,7 +1,7 @@
 # TinyToT — Tree of Thoughts Inference Server
 
 [![PyPI](https://img.shields.io/pypi/v/tinytot)](https://pypi.org/project/tinytot/)
-[![GitHub](https://img.shields.io/badge/github-guilt/tinytot-blue)](https://github.com/guilt/tinytot)
+[![GitHub](https://img.shields.io/badge/GitHub-guilt/tinytot-181717?logo=github)](https://github.com/guilt/tinytot)
 
 A local, privacy-first inference server that answers questions, reasons, generates
 code, handles documents, and holds natural multi-turn conversations —

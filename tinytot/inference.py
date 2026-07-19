@@ -6,6 +6,7 @@ Depends on tinytot.content and tinytot.retrieval. No FastAPI imports.
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -13,7 +14,15 @@ from typing import Optional
 from .agent import agentResponse, detectAgentNeeds
 from .codegen import generateCode, generateProject, isCodeRequest, isProjectRequest
 from .compute import detectComputePrompt, solveCompute
-from .content import CATEGORY_DIR, KNOWLEDGE_DIR, Chain, getCategories, getVariantConfig, loadReasoningChains
+from .content import (
+    CATEGORY_DIR,
+    KNOWLEDGE_DIR,
+    Chain,
+    getCategories,
+    getVariantConfig,
+    loadAugmentChains,
+    loadReasoningChains,
+)
 from .generate import detectUseCase, handleUseCase
 from .lang import SOCIAL_PATTERN
 from .refine import (
@@ -77,7 +86,23 @@ RESPONSE_NO_LIVE_DATA = (
     "To get current {topic}, please use a real-time data tool or API."
 )
 
-TOT_SUMMARY_LINE_LIMIT = 8
+TOT_SUMMARY_LINE_LIMIT = int(os.environ.get("TINYTOT_SUMMARY_LINES", "25"))
+
+# Conclusions from auto-ingested augment chains that are generic agent-trace
+# artifacts and should be replaced with the last thought step.
+_GENERIC_CONCLUSIONS = frozenset(
+    c.strip().lower()
+    for c in [
+        "task completed successfully.",
+        "task completed.",
+        "task failed.",
+        "task did not complete successfully.",
+        "task completed with unknown outcome.",
+        "task outcome unknown.",
+        "task completed with unknown outcome",
+        "task completed successfully",
+    ]
+)
 
 # Social phrase detection — see tinytot/lang.py Lang.social_phrases for the data.
 # SOCIAL_PATTERN is compiled from every language's phrase list at import time.
@@ -494,15 +519,19 @@ def executeReasoningSteps(
         response += f"Step {i}: {thought}\n"
 
     # Priority: explicit context > chain's own conclusion text > synthesised from thoughts
+    # Generic conclusions (e.g. "Task completed successfully." from auto-ingested
+    # augment chains) are treated as absent — fall back to the most informative
+    # thought (longest character count), which is often the first or second step
+    # that describes the approach rather than the last step which is a success signal.
     if context:
         conclusion = context
-    elif metadata.get("conclusion"):
+    elif metadata.get("conclusion") and metadata["conclusion"].strip().lower() not in _GENERIC_CONCLUSIONS:
         conclusion = metadata["conclusion"]
     else:
-        # Synthesise a conclusion from the last thought in the chain —
-        # better than "Reasoning complete for X domain."
         if thoughts:
-            conclusion = thoughts[-1]
+            # Use the most informative thought (longest) rather than the last,
+            # which in agent traces is typically a trite success confirmation.
+            conclusion = max(thoughts, key=len)
         else:
             conclusion = f"Reasoning complete for {category.replace('_', ' ')} domain."
     response += RESPONSE_CONCLUSION.format(conclusion=conclusion)
@@ -529,10 +558,12 @@ def generateTreeOfThoughtsResponse(
         force_category: Pin to a specific category instead of auto-routing.
             Useful when the caller knows the intent (e.g. 'financial' for investment queries).
     """
+    category = force_category or categorizePrompt(prompt, categoryDir)
+
+    hasAugment = bool(loadAugmentChains(category, categoryDir))
+
     hit = findKnowledgeAnswer(prompt, knowledgeDir) if not skip_knowledge else None
     knowledge: Optional[str] = None
-
-    category = force_category or categorizePrompt(prompt, categoryDir)
 
     if hit:
         knowledge, score = hit
@@ -541,7 +572,15 @@ def generateTreeOfThoughtsResponse(
         passageRelevant = any(w in passageLower for w in categoryWords)
         if score >= KNOWLEDGE_DIRECT_THRESHOLD and passageRelevant:
             return knowledge
-        # Keep knowledge for context even when off-category — it grounds the answer.
+        # Only keep knowledge as context when the passage shares significant
+        # content with the prompt (numeric overlap heuristic).  This prevents
+        # irrelevant generic passages from polluting augment chain output.
+        if hasAugment:
+            promptNums = set(re.findall(r"\b\d+\b", prompt))
+            passageNums = set(re.findall(r"\b\d+\b", knowledge))
+            sharedNums = promptNums & passageNums
+            if len(sharedNums) < min(len(promptNums), 2) if promptNums else False:
+                knowledge = None
 
     categories = getCategories(categoryDir)
 
@@ -552,6 +591,13 @@ def generateTreeOfThoughtsResponse(
     chains = loadReasoningChains(filename, categoryDir)
     if not chains:
         return knowledge if knowledge else RESPONSE_FALLBACK.format(prompt=prompt)
+
+    # Also load OpenTraces augmentation chains (excluded from routing index).
+    # These auto-ingested agent traces supplement the hand-crafted chains
+    # without distorting category routing.
+    augment_chains = loadAugmentChains(category, categoryDir)
+    if augment_chains:
+        chains = list(chains) + list(augment_chains)
 
     _, idf, _ = buildChainIndex(categoryDir)
     ranked = rankChains(prompt, chains, idf)
@@ -609,10 +655,18 @@ def generateTreeOfThoughtsResponse(
 
     # Determine the visible answer: prefer an explicit Conclusion: field, fall back
     # to the last thought, then to the category name.
-    if bestConclusion and not bestConclusion.startswith(_FALLBACK_PREFIX):
+    # Generic conclusions from auto-ingested augment chains are skipped.
+    has_good_conclusion = bool(
+        bestConclusion
+        and not bestConclusion.startswith(_FALLBACK_PREFIX)
+        and bestConclusion.strip().lower() not in _GENERIC_CONCLUSIONS
+    )
+    if has_good_conclusion:
         answer = bestConclusion
     elif bestThoughts:
-        answer = bestThoughts[-1]
+        # Use the most informative thought (longest); last thought is often just
+        # a success signal in auto-ingested agent traces.
+        answer = max(bestThoughts, key=len)
     else:
         answer = f"I've reasoned through {category.replace('_', ' ')}."
 

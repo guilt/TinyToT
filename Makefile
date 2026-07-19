@@ -36,7 +36,7 @@ PORT ?= 11434
 	run stop \
 	docs build-docs docs-serve live-docs \
 	examples \
-	benchmark bench \
+	ingest benchmark bench \
 	build publish publish-test \
 	build-binary
 
@@ -145,10 +145,12 @@ examples: ## Run example scripts from examples/
 		pipenv run $(PYTHON) $$f || true; \
 	done
 
-benchmark: ## Run benchmarks (ingests all corpora first)
-	@echo "-------------- Ingesting corpora --------------"
+ingest: ## Ingest all trace corpora (OpenTraces, CS chains, GSM8K, Princeton ToT)
+	@echo "-------------- Ingesting all trace corpora --------------"
 	@pipenv run tinytot-ingest all
+
+benchmark: ingest ## Run full benchmark suite (ingests first)
 	@echo "-------------- Running TinyToT benchmarks --------------"
 	@pipenv run tinytot-bench all --limit 500
 
-bench: benchmark
+bench: benchmark ## Alias for benchmark

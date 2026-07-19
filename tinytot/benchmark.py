@@ -236,6 +236,85 @@ def benchmark_routing(limit: int = 0) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# OpenTraces routing benchmark
+# ---------------------------------------------------------------------------
+
+_OPENTRACES_ROUTING_CASES: list[tuple[str, str]] = [
+    # OpenTraces prompts with their actual routing categories.
+    # These verify that routing to existing categories is stable after
+    # adding thousands of OpenTraces augmentation chains.
+    ("Test this regex pattern against these examples in the sandbox", "debug"),
+    ("Find the debugging steps we used last time for the connection timeout issue", "tool_calling"),
+    ("Use the sandbox to test different approaches for caching strategies", "computer_science"),
+    ("List my available skills and find one related to Python debugging", "programming"),
+    ("Look up how we configured the PostgreSQL tuning before", "tool_calling"),
+    ("Write a Java program that creates a simple load balancer simulation", "programming"),
+    ("Create a project structure for a browser extension application", "aws"),
+    ("Write a script that parses HTML tables and extracts configuration values", "creative_writing"),
+    ("Write a data pipeline script that streams data with windowed aggregations", "computer_science"),
+    ("Write a C program that implements a linked list with insert, delete, and search", "programming"),
+    ("Compare managed vs self-hosted databases covering trade-offs", "research"),
+    ("Implement error handling and logging for the file upload service", "debug"),
+]
+
+
+def benchmarkOpenTracesRouting(limit: int = 0) -> dict:
+    """Measure routing accuracy for prompts derived from OpenTraces traces.
+
+    OpenTraces chains are merged into existing TinyToT categories (programming,
+    debug, aws, etc.) so this verifies they route to the expected targets.
+    """
+    from tinytot.content import getCategories, loadReasoningChains
+    from tinytot.retrieval import buildChainIndex, categorizePrompt
+
+    buildChainIndex.cache_clear()
+    getCategories.cache_clear()
+    loadReasoningChains.cache_clear()
+
+    cats = getCategories()
+    cases = [c for c in _OPENTRACES_ROUTING_CASES if c[1] in cats]
+    if not cases:
+        logger.warning(
+            "No target categories found for OpenTraces routing cases; run `tinytot-ingest opentraces` first."
+        )
+        return {
+            "total": 0,
+            "correct": 0,
+            "accuracy_pct": 0,
+            "skipped": True,
+            "reason": "No target categories in _OPENTRACES_ROUTING_CASES",
+        }
+    if limit:
+        cases = cases[:limit]
+
+    # Warm caches
+    getCategories()
+    buildChainIndex()
+
+    total = len(cases)
+    correct = 0
+    wrong = []
+    for prompt, expected in cases:
+        actual = categorizePrompt(prompt)
+        if actual == expected:
+            correct += 1
+        else:
+            wrong.append({"prompt": prompt[:60], "expected": expected, "got": actual})
+
+    results = {
+        "total": total,
+        "correct": correct,
+        "accuracy_pct": round(correct / total * 100, 1) if total else 0,
+        "misrouted": wrong,
+    }
+
+    buildChainIndex.cache_clear()
+    getCategories.cache_clear()
+    loadReasoningChains.cache_clear()
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Knowledge retrieval precision benchmark
 # ---------------------------------------------------------------------------
 
@@ -1832,6 +1911,7 @@ def main() -> None:
     p_novel_math = sub.add_parser("novel-math", help="Anti-cheat: arithmetic with randomly generated numbers")
     p_novel_math.add_argument("--seed", type=int, default=_RANDOM_SEED, help="RNG seed (change to verify no caching)")
     sub.add_parser("novel-reasoning", help="Anti-cheat: held-out paraphrased prompts not in training data")
+    sub.add_parser("opentraces", help="Benchmark OpenTraces routing accuracy")
     sub.add_parser("novel-routing", help="Anti-cheat: routing accuracy on novel unseen phrasings")
 
     p_all = sub.add_parser("all", help="Run all benchmarks")
@@ -1896,10 +1976,15 @@ def main() -> None:
         _print_report("Real Video/GIF Analysis", benchmark_video_real())
 
     elif args.cmd == "multimodal":
-        _print_report("Multimodal Reasoning (image → ToT)", benchmark_multimodal())
+        _print_report("Multimodal Reasoning (image -> ToT)", benchmark_multimodal())
 
     elif args.cmd == "all":
         _print_report("Routing Accuracy", benchmark_routing())
+        r_ot = benchmarkOpenTracesRouting()
+        if r_ot.get("skipped"):
+            print(f"\n[OpenTraces skipped — {r_ot['reason']}]")
+        else:
+            _print_report("OpenTraces Routing Accuracy", r_ot)
         _print_report("Knowledge Retrieval Precision", benchmark_retrieval())
         _print_report("Summarization Eval (11 domains)", benchmark_summarize())
         _print_report("Code Generation (50 cases, 7 languages)", benchmark_codegen())
@@ -1931,7 +2016,7 @@ def main() -> None:
         _print_report("Multilingual Translation (8 languages)", benchmark_translate_real())
         _print_report("Real Document Extraction", benchmark_document_real())
         _print_report("Video/GIF Analysis", benchmark_video_real())
-        _print_report("Multimodal Reasoning (image → ToT)", benchmark_multimodal())
+        _print_report("Multimodal Reasoning (image -> ToT)", benchmark_multimodal())
         print("\n--- Anti-Cheat Benchmarks (held-out, randomised) ---")
         _print_report("Novel Math (random numbers, seed=42)", benchmark_novel_math())
         _print_report("Novel Reasoning (held-out paraphrased)", benchmark_novel_reasoning())
@@ -1943,6 +2028,9 @@ def main() -> None:
 
     elif args.cmd == "novel-reasoning":
         _print_report("Novel Reasoning (held-out paraphrased)", benchmark_novel_reasoning())
+
+    elif args.cmd == "opentraces":
+        _print_report("OpenTraces Routing Accuracy", benchmarkOpenTracesRouting())
 
     elif args.cmd == "novel-routing":
         _print_report("Novel Routing (unseen phrasings)", benchmark_novel_routing())

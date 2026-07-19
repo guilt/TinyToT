@@ -341,7 +341,7 @@ def run_all_checks() -> int:
         if issues:
             print(f"\n  {_c('FAIL', _RED, _BOLD)}  {name} — {len(issues)} issue(s):")
             for loc, msg in issues:
-                print(f"    {_c('✗', _RED)} {loc}")
+                print(f"    {_c('x', _RED)} {loc}")
                 print(f"      {msg}")
             totalIssues += len(issues)
         else:

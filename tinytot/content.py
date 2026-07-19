@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "getCategories",
     "loadReasoningChains",
+    "loadAugmentChains",
     "loadToolPatterns",
     "loadKnowledgePassages",
     "loadHermesJournal",
@@ -199,6 +200,22 @@ def loadReasoningChains(categoryFile: str, categoryDir: Path = CATEGORY_DIR) -> 
         chains.append((currentTitle, currentChain, currentMeta))
 
     return chains
+
+
+@lru_cache(maxsize=None)
+def loadAugmentChains(categoryName: str, categoryDir: Path = CATEGORY_DIR) -> List[Chain]:
+    """Load OpenTraces augmentation chains for a given category.
+
+    Augment files follow the naming convention
+    ``opentraces_augment_<categoryName>.md``  and contain auto-ingested
+    agent reasoning traces that supplement the hand-crafted chains in the
+    main category file.  They are excluded from the routing index
+    (``buildChainIndex`` skips ``opentraces_augment_*`` files) but are
+    available for reasoning via this function.
+
+    Returns empty list when no augment file exists.
+    """
+    return loadReasoningChains(f"opentraces_augment_{categoryName}.md", categoryDir)
 
 
 # ---------------------------------------------------------------------------
