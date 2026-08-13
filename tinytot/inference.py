@@ -85,6 +85,9 @@ RESPONSE_NO_LIVE_DATA = (
     "I don't have access to live or real-time data for this query. "
     "To get current {topic}, please use a real-time data tool or API."
 )
+RESPONSE_UNKNOWN_FACT = (
+    "I don't have this in my knowledge base, so I don't have enough information to answer that question truthfully."
+)
 
 TOT_SUMMARY_LINE_LIMIT = int(os.environ.get("TINYTOT_SUMMARY_LINES", "25"))
 
@@ -212,6 +215,110 @@ _YES_NO_PATTERN = re.compile(
 _YES_NO_END_PATTERN = re.compile(
     r"[.!]\s+(?:is|are|does|do|can|was|were|has|have|did|will)\s+\S+.{0,30}\??\s*$", re.IGNORECASE
 )
+
+# ---------------------------------------------------------------------------
+# Factoid query detection (truthfulness guard)
+#
+# A "factoid" query is a specific factual lookup whose only correct answer is a
+# named fact (capital of X, who invented X, tallest mountain, ...).  These must
+# be answered from the knowledge base.  If the KB lacks a confident, on-topic
+# passage, the truthful response is "I don't know" — never a fabricated fact.
+# ---------------------------------------------------------------------------
+
+_FACTOID_PATTERNS = [
+    (re.compile(r"capital\s+of\s+([A-Za-z][\w '-]*)", re.I), "entity"),
+    (
+        re.compile(r"who\s+(?:is|was)\s+(?:the\s+)?(?:inventor|author|creator|founder|writer)\s+of\s+(.+?)\??$", re.I),
+        "obj",
+    ),
+    (
+        re.compile(r"who\s+(?:invented|wrote|created|discovered|founded|designed|built|painted)\s+(.+?)\??$", re.I),
+        "obj",
+    ),
+    (
+        re.compile(
+            r"(?:the\s+)?((?:tallest|longest|largest|smallest|closest|highest|deepest))\s+\w*\s*"
+            r"(?:river|mountain|ocean|continent|planet|country)\s+in\s+the\s+world\??$",
+            re.I,
+        ),
+        "superlative",
+    ),
+    (re.compile(r"atomic\s+number\s+of\s+(.+?)\??$", re.I), "entity"),
+    (re.compile(r"chemical\s+symbol\s+(?:for|of)\s+(.+?)\??$", re.I), "entity"),
+    (re.compile(r"who\s+was\s+the\s+first\s+(?:\w+\s+)*president\s+of\s+(.+?)\??$", re.I), "entity"),
+    (re.compile(r"when\s+was\s+(.+?)\s+(?:born|died|signed|created|founded|invented)\??$", re.I), "entity"),
+    (re.compile(r"what\s+year\s+(?:was|did)\s+(.+?)\??$", re.I), "entity"),
+    (re.compile(r"what\s+is\s+the\s+(?:capital|highest|largest|tallest)\s+of\s+(.+?)\??$", re.I), "entity"),
+    (re.compile(r"where\s+(?:is|was)\s+(.+?)\??$", re.I), "entity"),
+]
+
+
+def isFactoidQuery(prompt: str) -> bool:
+    """True when the prompt is a specific factual lookup requiring a named fact.
+
+    These queries must be answered from the knowledge base; when the KB cannot
+    answer them, TinyToT should truthfully say it doesn't know rather than
+    fabricating a plausible-sounding fact.
+    """
+    return any(pat.search(prompt) for pat, _ in _FACTOID_PATTERNS)
+
+
+def factoidAnswerEntity(prompt: str) -> Optional[str]:
+    """Return the named entity/object a factoid query asks about, if extractable.
+
+    E.g. "What is the capital of India?" → "India".  Returns None when no
+    specific entity is stated (e.g. "tallest mountain in the world"), in which
+    case any on-topic passage is acceptable.
+    """
+    for pat, kind in _FACTOID_PATTERNS:
+        m = pat.search(prompt)
+        if m:
+            if kind is None:
+                return None
+            return m.group(1)
+    return None
+
+
+_WHO_VERB_RE = re.compile(r"who\s+(invented|wrote|created|discovered|founded|designed|built|painted)\b", re.IGNORECASE)
+
+
+def passageAnswersFactoid(prompt: str, passage: Optional[str]) -> bool:
+    """Check that a knowledge passage genuinely answers a factoid query.
+
+    The passage must contain the named entity/object the query asks about
+    (e.g. "France" for "What is the capital of France?").  For "who <verb> X"
+    queries (e.g. "Who painted the Mona Lisa?") the verb must also appear, so a
+    trivia passage that merely mentions the entity ("Could Amazon afford The
+    Mona Lisa?") is not returned as an answer.
+
+    For superlative lookups (e.g. "deepest ocean in the world") the passage must
+    mention the superlative term itself ("deepest"/"deep"), so a passage about
+    the second-largest ocean is not returned as an answer.
+    """
+    if not passage:
+        return False
+    passageLower = passage.lower()
+    for pat, kind in _FACTOID_PATTERNS:
+        m = pat.search(prompt)
+        if not m:
+            continue
+        if kind == "superlative":
+            superlative = m.group(1).lower()
+            stems = {superlative, superlative[:-2], superlative[:-1]}
+            return any(s in passageLower for s in stems if len(s) >= 4)
+        if kind in ("entity", "obj"):
+            entity = m.group(1)
+            toks = [t for t in re.findall(r"[a-z]{4,}", entity.lower()) if t not in ("the", "of", "and", "in", "for")]
+            if kind == "obj":
+                verb = _WHO_VERB_RE.search(prompt)
+                if verb:
+                    toks.append(verb.group(1))
+            if not toks:
+                return True
+            return all(t in passageLower for t in toks)
+        return True
+    return True
+
 
 # Extracts the evaluated "Response:" block from a scoring prompt
 _RESPONSE_LABEL_RE = re.compile(
@@ -847,6 +954,14 @@ def generateReasoningResponse(
         if hit:
             passage, score = hit
 
+            # Truthfulness guard: for a specific factual lookup, only accept a
+            # passage that genuinely answers the query.  Weak TF-IDF matches
+            # that share common words (e.g. "capital") but are about the wrong
+            # subject (e.g. the capital of Argentina) are rejected rather than
+            # returned as fact.
+            if isFactoidQuery(prompt) and not passageAnswersFactoid(prompt, passage):
+                return RESPONSE_UNKNOWN_FACT
+
             if score >= KNOWLEDGE_DIRECT_THRESHOLD:
                 _, idf, _ = buildKnowledgeIndex(knowledgeDir)
                 return shapeDirectAnswer(prompt, passage, idf)
@@ -872,6 +987,12 @@ def generateReasoningResponse(
                 if not longWords or re.search(r"\b" + re.escape(longWords[0]) + r"\b", passageLower):
                     _, idf, _ = buildKnowledgeIndex(knowledgeDir)
                     return shapeDirectAnswer(prompt, passage, idf)
+
+    # Truthfulness guard: a specific factual lookup that the knowledge base
+    # could not confidently answer must not fall through to a fabricated
+    # reasoning-chain answer.  Say so honestly instead.
+    if isFactoidQuery(prompt):
+        return RESPONSE_UNKNOWN_FACT
 
     # Code generation: runs after knowledge lookup so factual questions that
     # share vocabulary with code patterns (e.g. "minimum balance") are answered

@@ -32,6 +32,7 @@ parameters — not 7B, not 70B.
 |---|---|---|
 | Routing accuracy | **53/53 (100%)** | 15 domain categories |
 | Knowledge retrieval precision | **15/15 (100%)** | Direct factual Q&A |
+| TruthfulQA | **23/23 (100%)** | Known facts answered; unknown facts admitted honestly |
 | Novel reasoning (held-out) | **18/18 (100%)** | Paraphrased — no training-string match |
 | Novel routing (unseen phrasings) | **22/22 (100%)** | Router generalisation |
 | Novel math (random seeds) | **25/25 (100%)** | Anti-cheat: random numbers each run |
@@ -57,6 +58,13 @@ Plain `.md` files in `tinytot/_data/knowledge/`. Drop a file, then POST /api/rel
 - Earth science, geography/geopolitics, world history
 - Computer science, software engineering, technology & society
 - Finance, investing, mathematics
+
+**Truthful by construction.** TinyToT has no parametric knowledge — facts are
+retrieved from the knowledge base or they are not. For specific factual lookups
+(e.g. "What is the capital of India?") that the knowledge base cannot answer, it
+says so honestly ("I don't have this in my knowledge base") rather than
+fabricating a plausible-sounding fact. Truthfulness is measured by the
+[TruthfulQA benchmark](#benchmark-results).
 
 ### 2. Compute engine — exact answers, no retrieval
 Handles a wide class of problems through direct computation:
@@ -329,7 +337,7 @@ make tests        # pytest with coverage (gate ≥ 80%)
 make unit-tests   # unit tests only
 make lint         # ruff check
 make format       # ruff format
-make precommit    # run all pre-commit hooks (16 benchmarks + tests + lint)
+make precommit    # run all pre-commit hooks (17 benchmarks + tests + lint)
 make docs         # regenerate API docs + build Sphinx HTML
 make docs-serve   # serve docs on localhost
 make live-docs    # live-reload docs server
@@ -339,7 +347,7 @@ make build-binary # build self-contained binary (dist/tinytot or dist/tinytot.ex
 ```
 
 Pre-commit runs automatically on every commit:
-ruff → ruff-format → mypy → pytest → benchmark regression guard (16 benchmarks)
+ruff → ruff-format → mypy → pytest → benchmark regression guard (17 benchmarks)
 
 ---
 
@@ -360,7 +368,7 @@ tinytot/
   lang.py           Lang enum, 24 languages, SOCIAL_PATTERN, detect_lang()
   server.py         FastAPI app, Ollama + OpenAI endpoints
   ingest.py         IngestSource ABC — GSM8K, Princeton ToT, argostranslate packs
-  benchmark.py      16 benchmarks including 3 anti-cheat (novel math/reasoning/routing)
+  benchmark.py      17 benchmarks including TruthfulQA and 3 anti-cheat (novel math/reasoning/routing)
   summarize.py      extractive summarization
   clone.py          self-replication — tinytot-clone CLI, NanoToT delta variants
   _web/             Web UI (index.html served at /, style.css)

@@ -56,7 +56,7 @@ def save_baseline(scores: Dict[str, int]) -> None:
         json.dumps(scores, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(f"Baseline updated → {_BASELINE_PATH}")
+    print(f"Baseline updated -> {_BASELINE_PATH}")
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +126,7 @@ def run_benchmarks() -> Dict[str, int]:
         benchmark_retrieval,
         benchmark_routing,
         benchmark_summarize,
+        benchmark_truthfulqa,
     )
     from tinytot.codegen import _loadConfig, _loadPatterns
     from tinytot.content import getCategories, loadKnowledgePassages, loadReasoningChains
@@ -146,6 +147,7 @@ def run_benchmarks() -> Dict[str, int]:
     suite = {
         "routing": (benchmark_routing, "correct"),
         "retrieval": (benchmark_retrieval, "hits"),
+        "truthfulqa": (benchmark_truthfulqa, "passed"),
         "summarization": (benchmark_summarize, "passed"),
         "codegen": (benchmark_codegen, "passed"),
         "novel_math": (benchmark_novel_math, "passed"),

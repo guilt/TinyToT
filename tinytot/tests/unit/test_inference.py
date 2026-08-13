@@ -547,4 +547,157 @@ class TestConversationContext:
             {"role": "assistant", "content": "Hi there!"},
         ]
         result = buildContextPrompt(history, "Is this good enough?")
+        assert "greet" not in result
+
+
+# ---------------------------------------------------------------------------
+# Truthfulness guard — factoid detection + honest refusal on unknown facts
+# ---------------------------------------------------------------------------
+
+
+class TestIsFactoidQuery:
+    def test_capital_entity(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("What is the capital of India?")
+
+    def test_who_invented(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("Who invented the light bulb?")
+
+    def test_who_painted(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("Who painted the Mona Lisa?")
+
+    def test_superlative_world(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("What is the tallest mountain in the world?")
+
+    def test_atomic_number(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("What is the atomic number of gold?")
+
+    def test_first_president(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("Who was the first president of the United States?")
+
+    def test_when_was_signed(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert isFactoidQuery("When was the Declaration of Independence signed?")
+
+    def test_conceptual_question_not_factoid(self):
+        from tinytot.inference import isFactoidQuery
+
+        assert not isFactoidQuery("What is machine learning?")
+        assert not isFactoidQuery("What does SOLID stand for in software design?")
+        assert not isFactoidQuery("Why is the sky blue?")
+        assert not isFactoidQuery("How many days are in a week?")
+
+
+class TestFactoidAnswerEntity:
+    def test_extracts_capital_entity(self):
+        from tinytot.inference import factoidAnswerEntity
+
+        assert "India" in factoidAnswerEntity("What is the capital of India?")
+
+    def test_extracts_object_for_who(self):
+        from tinytot.inference import factoidAnswerEntity
+
+        assert "light bulb" in factoidAnswerEntity("Who invented the light bulb?")
+
+    def test_extracts_president_country(self):
+        from tinytot.inference import factoidAnswerEntity
+
+        assert "United States" in factoidAnswerEntity("Who was the first president of the United States?")
+
+
+class TestPassageAnswersFactoid:
+    def test_correct_passage_accepted(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert passageAnswersFactoid(
+            "What is the capital of France?",
+            "The capital of France is Paris. Paris is the largest city.",
+        )
+
+    def test_wrong_entity_rejected(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert not passageAnswersFactoid(
+            "What is the capital of India?",
+            "The capital of Argentina is Buenos Aires. The capital of Peru is Lima.",
+        )
+
+    def test_verb_mismatch_rejected(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert not passageAnswersFactoid(
+            "Who invented the light bulb?",
+            "A light-year is the distance light travels in one year.",
+        )
+
+    def test_trivia_with_entity_rejected(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert not passageAnswersFactoid(
+            "Who painted the Mona Lisa?",
+            "Q: Could Amazon afford The Mona Lisa? A: Yes.",
+        )
+
+    def test_superlative_wrong_subject_rejected(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert not passageAnswersFactoid(
+            "What is the deepest ocean in the world?",
+            "The Atlantic Ocean is the second largest ocean. The Indian Ocean is the third largest.",
+        )
+
+    def test_superlative_correct_subject_accepted(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert passageAnswersFactoid(
+            "What is the deepest ocean in the world?",
+            "The Pacific Ocean is the deepest ocean, home to the Mariana Trench.",
+        )
+
+    def test_no_passage_rejected(self):
+        from tinytot.inference import passageAnswersFactoid
+
+        assert not passageAnswersFactoid("What is the capital of India?", None)
+
+
+class TestTruthfulRefusal:
+    def test_unknown_fact_returns_honest_refusal(self):
+        from tinytot.inference import RESPONSE_UNKNOWN_FACT, generateReasoningResponse
+
+        result = generateReasoningResponse("What is the capital of India?")
+        assert result == RESPONSE_UNKNOWN_FACT
+        assert "don't have" in result
+        assert "knowledge base" in result
+
+    def test_unknown_fact_no_fabrication(self):
+        from tinytot.inference import generateReasoningResponse
+
+        result = generateReasoningResponse("Who invented the light bulb?").lower()
+        assert result == result  # no crash
+        assert "knowledge base" in result
+
+    def test_known_fact_still_answered(self):
+        from tinytot.inference import generateReasoningResponse
+
+        result = generateReasoningResponse("What is the capital of France?")
+        assert "Paris" in result
+
+    def test_conceptual_question_not_blocked(self):
+        from tinytot.inference import generateReasoningResponse
+
+        result = generateReasoningResponse("What does SOLID stand for in software design?")
+        assert isinstance(result, str) and len(result) > 0
+        assert "knowledge base" not in result.lower() or "don't have" not in result.lower()
         assert "[reviewing:" not in result
