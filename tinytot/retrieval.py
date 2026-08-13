@@ -50,6 +50,7 @@ __all__ = [
     "scoreResponse",
     "multiHeadScore",
     "multiHeadScorePassage",
+    "clearRetrievalCaches",
 ]
 
 DEFAULT_CATEGORY = "tool_calling"
@@ -736,3 +737,22 @@ def scoreResponse(
     # and anything at or above KNOWLEDGE_DIRECT_THRESHOLD → 1.0
     normalised = 0.5 + 0.5 * (raw - KNOWLEDGE_THRESHOLD) / (KNOWLEDGE_DIRECT_THRESHOLD - KNOWLEDGE_THRESHOLD)
     return round(min(normalised, 1.0), 4)
+
+
+# ---------------------------------------------------------------------------
+# Cache management (hot-reload support)
+# ---------------------------------------------------------------------------
+
+
+def clearRetrievalCaches() -> None:
+    """Clear all retrieval-layer lru_caches (indexes built on top of content).
+
+    After calling this (and content.clearContentCaches), the next query will
+    rebuild the TF-IDF / multi-head indexes from the freshly loaded passages
+    and chains.
+    """
+    buildChainIndex.cache_clear()
+    buildChainMeta.cache_clear()
+    buildKnowledgeIndex.cache_clear()
+    _knowledgeAvgDocLen.cache_clear()
+    logger.info("Retrieval caches cleared")

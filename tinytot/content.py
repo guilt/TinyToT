@@ -29,6 +29,7 @@ __all__ = [
     "loadKnowledgePassages",
     "loadHermesJournal",
     "getVariantConfig",
+    "clearContentCaches",
 ]
 
 # ---------------------------------------------------------------------------
@@ -355,7 +356,7 @@ def loadKnowledgePassages(
     replace base passages; new files add to the corpus.  This means a variant
     only needs to ship the files it actually changes.
 
-    Cached per directory path. Restart the server after editing knowledge files.
+    Cached per directory path. Call clearContentCaches() + clearRetrievalCaches() (or POST /api/reload) after editing knowledge files.
     """
     base_knowledge = BASE_DATA_DIR / "knowledge"
 
@@ -438,3 +439,23 @@ def getVariantConfig(dataDir: Path = DATA_DIR) -> Dict[str, Any]:
     except Exception as e:
         logger.warning("Cannot load variant config %s: %s", variant_file, e)
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Cache management (hot-reload support)
+# ---------------------------------------------------------------------------
+
+
+def clearContentCaches() -> None:
+    """Clear all content-layer lru_caches so the next call reloads from disk.
+
+    Call this (and the corresponding retrieval clear) after editing knowledge
+    or category files if you want the changes to take effect without restarting
+    the server.
+    """
+    getCategories.cache_clear()
+    loadReasoningChains.cache_clear()
+    loadAugmentChains.cache_clear()
+    loadKnowledgePassages.cache_clear()
+    getVariantConfig.cache_clear()
+    logger.info("Content caches cleared")

@@ -62,6 +62,55 @@ async def test_show_returns_model_info(client):
 
 
 # ---------------------------------------------------------------------------
+# /api/reload
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reload_returns_status(client):
+    r = await client.post("/api/reload")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "reloaded"
+    assert body["knowledge_passages"] > 0
+    assert body["knowledge_only"] is False
+
+
+@pytest.mark.asyncio
+async def test_reload_knowledge_only(client):
+    r = await client.get("/api/reload", params={"knowledge_only": True})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "reloaded"
+    assert body["knowledge_only"] is True
+
+
+@pytest.mark.asyncio
+async def test_reload_clears_caches_and_picks_up_new_file(client, tmp_path):
+    from tinytot import content, retrieval
+    from tinytot.content import loadKnowledgePassages
+
+    # Point the knowledge dir at a temp dir so we don't touch real data
+    kdir = tmp_path / "knowledge"
+    kdir.mkdir()
+    (kdir / "one.md").write_text("Alpha fact: the sky is blue.")
+
+    content.clearContentCaches()
+    retrieval.clearRetrievalCaches()
+    loadKnowledgePassages(kdir)
+    before = len(loadKnowledgePassages(kdir))
+
+    # Simulate dropping a new knowledge file while the server is running
+    (kdir / "two.md").write_text("Beta fact: the sea is salty.")
+
+    content.clearContentCaches()
+    retrieval.clearRetrievalCaches()
+
+    after = len(loadKnowledgePassages(kdir))
+    assert after == before + 1
+
+
+# ---------------------------------------------------------------------------
 # /api/pull
 # ---------------------------------------------------------------------------
 

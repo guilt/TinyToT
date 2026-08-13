@@ -52,7 +52,7 @@ parameters — not 7B, not 70B.
 ## Capabilities
 
 ### 1. Factual Q&A — 30+ knowledge domains
-Plain `.md` files in `tinytot/_data/knowledge/`. Drop a file, restart, done.
+Plain `.md` files in `tinytot/_data/knowledge/`. Drop a file, then POST /api/reload (or restart).
 - Physics, chemistry, biology, medicine, law, macroeconomics, psychology
 - Earth science, geography/geopolitics, world history
 - Computer science, software engineering, technology & society
@@ -269,7 +269,8 @@ echo "## My Domain
 
 The key fact is X. Context goes here." >> tinytot/_data/knowledge/my_domain.md
 
-# Restart the server — no build step, no retraining
+# Hot-reload (or restart) — no build step, no retraining
+# curl -X POST http://localhost:11434/api/reload
 tinytot        # or: make run
 ```
 
@@ -310,6 +311,7 @@ recursive JSON key extraction, and CSV→JSON conversion are in
 | `/api/show` | POST | Model details |
 | `/api/pull` | POST | No-op (compatibility) |
 | `/api/quit` | POST/GET | Graceful shutdown |
+| `/api/reload` | POST/GET | Hot-reload knowledge + indexes from disk |
 | `/v1/chat/completions` | POST | OpenAI-compatible (Hermes drop-in) |
 | `/v1/models` | GET | OpenAI model list |
 | `/api/agent` | POST | Plan-execute-synthesise agentic loop |
