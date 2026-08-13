@@ -18,7 +18,8 @@ query
 
 Ingested data flows into the model's response at query time — no restart
 is needed for code templates. The knowledge and routing indexes are cached
-per-process; restart the server after adding new knowledge files.
+per-process; after adding new knowledge files, hot-reload with
+`curl -X POST http://localhost:11434/api/reload` or restart the server.
 
 ---
 
@@ -77,11 +78,9 @@ print(f'{len(vecs)} passages in index')
 ### Ingest GSM8K (grade school math)
 
 ```bash
-# If you have the raw data:
-make ingest TOT_DATA=/path/to/grade_school_math/data
-
-# The test JSONL is already pre-generated from the ingested knowledge base:
-# data/gsm8k_test.jsonl — used automatically by make bench
+# The GSM8K test JSONL is NOT shipped in the wheel (it is a large external
+# dataset). Provide the path to a GSM8K JSONL explicitly:
+tinytot-ingest gsm8k /path/to/gsm8k_test.jsonl
 ```
 
 Each GSM8K record becomes a Q/A passage:
@@ -95,7 +94,9 @@ Answer: 72
 ### Ingest Princeton ToT traces
 
 ```bash
-make ingest TOT_DATA=/path/to/tree-of-thought-llm/logs
+# Clones (or updates) the princeton-nlp/tree-of-thought-llm repo and ingests
+# the game24 + creative-writing traces:
+tinytot-ingest tot-princeton
 ```
 
 Produces:

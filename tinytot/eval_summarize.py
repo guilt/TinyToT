@@ -17,6 +17,7 @@ import sys
 import time
 from pathlib import Path
 
+from ._stdio import ensureUtf8Stdio
 from .content import DATA_DIR
 from .summarize import summarizeDocument
 
@@ -126,6 +127,8 @@ def run_eval(path: Path = _DEFAULT_EVAL, verbose: bool = False) -> bool:
 
 def main() -> None:
     import argparse
+
+    ensureUtf8Stdio()
 
     parser = argparse.ArgumentParser(description="Run TinyToT summarization eval")
     parser.add_argument("--file", type=Path, default=_DEFAULT_EVAL, help="Path to eval markdown file")

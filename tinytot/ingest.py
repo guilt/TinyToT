@@ -36,6 +36,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Iterator
 
+from tinytot._stdio import ensureUtf8Stdio
 from tinytot.content import CATEGORY_DIR, DATA_DIR, KNOWLEDGE_DIR
 
 from .lang import TRANSLATE_LANGS, TRANSLATE_PAIRS  # noqa: F401 (re-exported for CLI use)
@@ -134,6 +135,14 @@ class GSM8KSource(IngestSource):
         parser.add_argument("--limit", type=int, default=0, help="Max records (0=all)")
 
     def run(self, args: argparse.Namespace) -> list[tuple[str, int, Path]]:
+        if not args.source.exists():
+            logger.error(
+                "GSM8K source not found: %s\n"
+                "gsm8k_test.jsonl is not shipped with the wheel.  Provide the path to a "
+                "GSM8K JSONL, e.g. `tinytot-ingest gsm8k /path/to/gsm8k_test.jsonl`.",
+                args.source,
+            )
+            return []
         n = ingestGsm8k(args.source, args.out, args.limit)
         return [("GSM8K", n, args.out)]
 
@@ -1181,6 +1190,7 @@ _SOURCES: list[type[IngestSource]] = [
 
 
 def main() -> None:
+    ensureUtf8Stdio()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     parser = argparse.ArgumentParser(description="Ingest trace corpora into TinyToT")

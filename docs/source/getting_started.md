@@ -88,10 +88,10 @@ make stop
 make bench
 ```
 
-Runs all 7 benchmarks — routing, retrieval, summarization, code generation,
-novel_math, novel_reasoning, and novel_routing — and prints ASCII bar charts.
-Takes about 30 seconds. The same benchmarks run automatically as a pre-commit
-regression guard.
+Runs all 8 benchmarks — routing, retrieval, truthfulqa, summarization, code
+generation, novel_math, novel_reasoning, and novel_routing — and prints ASCII
+bar charts. Takes about 30 seconds. The same benchmarks run automatically as a
+pre-commit regression guard.
 
 ## Quick reference
 
@@ -102,8 +102,8 @@ make tests            pytest with coverage
 make unit-tests       unit tests only
 make lint             ruff check
 make format           ruff format
-make precommit        pre-commit checks (runs all 7 benchmarks)
-make benchmark        ingest corpora then run all 7 benchmarks (alias: make bench)
+make precommit        pre-commit checks (runs all 8 benchmarks)
+make benchmark        ingest corpora then run all 8 benchmarks (alias: make bench)
 make docs             regenerate API docs + build Sphinx HTML
 make docs-serve       serve built docs on localhost
 make live-docs        live-reload docs server

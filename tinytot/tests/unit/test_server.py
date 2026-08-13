@@ -12,7 +12,8 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from tinytot.content import getCategories, loadReasoningChains
+from tinytot import content, retrieval
+from tinytot.content import getCategories, loadKnowledgePassages, loadReasoningChains
 from tinytot.retrieval import buildChainIndex
 from tinytot.server import app
 
@@ -87,9 +88,6 @@ async def test_reload_knowledge_only(client):
 
 @pytest.mark.asyncio
 async def test_reload_clears_caches_and_picks_up_new_file(client, tmp_path):
-    from tinytot import content, retrieval
-    from tinytot.content import loadKnowledgePassages
-
     # Point the knowledge dir at a temp dir so we don't touch real data
     kdir = tmp_path / "knowledge"
     kdir.mkdir()

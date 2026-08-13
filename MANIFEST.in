@@ -6,6 +6,13 @@ recursive-include tinytot/_data/codegen *.yaml *.md
 recursive-include tinytot/_data/eval *.md
 recursive-include tinytot/_data/generate *.yaml
 include tinytot/_data/benchmarks_baseline.json
-exclude tinytot/_data/.sources
+# Benchmark corpora (image/document/video fixtures) ship with the package;
+# the heavy downloaded sources (opentraces traces, ToT repo) do not.
+recursive-include tinytot/_data/.sources/corpora *
+prune tinytot/_data/.sources/opentraces_devtime
+prune tinytot/_data/.sources/opentraces_runtime
+prune tinytot/_data/.sources/opentraces_hermes_reasoning
+prune tinytot/_data/.sources/lambda_hermes_agent_reasoning_opentraces
+prune tinytot/_data/.sources/tree-of-thought-llm
 exclude tinytot/_data/journal
 exclude tinytot/_data/gsm8k_test.jsonl

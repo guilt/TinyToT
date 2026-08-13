@@ -117,6 +117,7 @@ exclude = ["tinytot/**/tests/*"]
     "_data/generate/creative/*.yaml",
     "_data/benchmarks_baseline.json",
     "_data/variants/*.yaml",
+    "_data/.sources/corpora/*",
     "_web/static/*",
 ]
 

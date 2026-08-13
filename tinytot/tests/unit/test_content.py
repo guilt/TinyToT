@@ -4,8 +4,10 @@ import pytest
 
 from tinytot.content import (
     METADATA_KEY_HANDLES,
+    clearContentCaches,
     getCategories,
     loadHermesJournal,
+    loadKnowledgePassages,
     loadReasoningChains,
     loadToolPatterns,
 )
@@ -228,8 +230,6 @@ class TestLoadHermesJournal:
 
 class TestLoadKnowledgePassagesHermesDetection:
     def test_auto_detects_hermes_format(self, tmp_path):
-        from tinytot.content import loadKnowledgePassages
-
         loadKnowledgePassages.cache_clear()
         kdir = tmp_path / "knowledge"
         kdir.mkdir()
@@ -246,8 +246,6 @@ class TestLoadKnowledgePassagesHermesDetection:
 
 class TestClearContentCaches:
     def test_clears_all_content_caches(self, category_dir):
-        from tinytot.content import clearContentCaches
-
         getCategories(category_dir)
         loadReasoningChains("math.md", category_dir)
 
@@ -260,8 +258,6 @@ class TestClearContentCaches:
         assert loadReasoningChains.cache_info().currsize == 0
 
     def test_picks_up_new_category_after_clear(self, tmp_path):
-        from tinytot.content import clearContentCaches
-
         cat_dir = tmp_path / "cats"
         cat_dir.mkdir()
         (cat_dir / "math.md").write_text("## Chain 1: A\nThought 1: step one\n")
@@ -276,8 +272,6 @@ class TestClearContentCaches:
         assert cats["physics"] == "physics.md"
 
     def test_plain_and_hermes_mixed(self, tmp_path):
-        from tinytot.content import loadKnowledgePassages
-
         loadKnowledgePassages.cache_clear()
         kdir = tmp_path / "knowledge"
         kdir.mkdir()
