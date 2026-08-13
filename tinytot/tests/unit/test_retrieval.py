@@ -4,13 +4,17 @@ import math
 
 import pytest
 
-from tinytot.content import getCategories, loadReasoningChains
+from tinytot.content import clearContentCaches, getCategories, loadReasoningChains
 from tinytot.retrieval import (
     DEFAULT_CATEGORY,
     MAX_EVALUATED_PATHS,
+    _knowledgeAvgDocLen,
     buildChainIndex,
+    buildChainMeta,
+    buildKnowledgeIndex,
     categorizePrompt,
     chainVector,
+    clearRetrievalCaches,
     cosineSim,
     queryVector,
     rankChains,
@@ -229,16 +233,12 @@ class TestScoreResponse:
         assert scoreResponse("   ", empty) == 0.0
 
     def test_score_in_unit_range(self):
-        from tinytot.retrieval import buildKnowledgeIndex
-
         buildKnowledgeIndex.cache_clear()
         score = scoreResponse("Paris is the capital of France")
         assert 0.0 <= score <= 1.0
         buildKnowledgeIndex.cache_clear()
 
     def test_relevant_scores_higher_than_nonsense(self):
-        from tinytot.retrieval import buildKnowledgeIndex
-
         buildKnowledgeIndex.cache_clear()
         relevant = scoreResponse("Paris is the capital of France and its largest city")
         nonsense = scoreResponse("zorbax fribble quux blorple xyzzy")
@@ -259,14 +259,6 @@ class TestScoreResponse:
 
 class TestClearRetrievalCaches:
     def test_clears_all_retrieval_caches(self, category_dir):
-        from tinytot.retrieval import (
-            _knowledgeAvgDocLen,
-            buildChainIndex,
-            buildChainMeta,
-            buildKnowledgeIndex,
-            clearRetrievalCaches,
-        )
-
         buildChainIndex(category_dir)
         buildChainMeta(category_dir)
         buildKnowledgeIndex.cache_clear()
@@ -286,9 +278,6 @@ class TestClearRetrievalCaches:
         assert _knowledgeAvgDocLen.cache_info().currsize == 0
 
     def test_rebuilds_index_after_clear(self, tmp_path):
-        from tinytot.content import clearContentCaches
-        from tinytot.retrieval import buildKnowledgeIndex, clearRetrievalCaches
-
         kdir = tmp_path / "knowledge"
         kdir.mkdir()
         (kdir / "one.md").write_text("Alpha fact: the sky is blue.")

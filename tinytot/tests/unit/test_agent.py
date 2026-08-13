@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
 from tinytot.agent import (
+    _MAX_STEPS,
     LearningJournal,
     PlanExecuteLoop,
     _extract_params,
@@ -211,8 +213,6 @@ class TestLearningJournal:
     def test_record_handles_io_error_gracefully(self, tmp_path):
         journal = LearningJournal(journal_dir=tmp_path)
         # Make the directory read-only to force IOError
-        import os
-
         os.chmod(tmp_path, 0o444)
         try:
             journal.record("Should not crash")  # should log warning, not raise
@@ -301,8 +301,6 @@ class TestPlanExecuteLoop:
             return_value="\n".join(f"Step {i}: [web_search] - search thing {i}" for i in range(20)),
         ):
             steps = loop._plan("complex multi-step task " + " and then " * 5 + "summarize")
-        from tinytot.agent import _MAX_STEPS
-
         assert len(steps) <= _MAX_STEPS
 
     def test_journal_records_on_useful_result(self, tmp_path):

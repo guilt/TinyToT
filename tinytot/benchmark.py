@@ -22,10 +22,13 @@ import random as _random
 import re
 import time
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from tinytot.content import CATEGORY_DIR, DATA_DIR  # noqa: E402
+from tinytot import __version__  # noqa: E402
+from tinytot._stdio import ensureUtf8Stdio  # noqa: E402
+from tinytot.content import BASE_DATA_DIR, CATEGORY_DIR, DATA_DIR  # noqa: E402
 
 _CALC_RE = re.compile(r"<<[^>]+>>")
 
@@ -1051,16 +1054,38 @@ _AGENT_TOOL_CASES = [
 ]
 
 
+_GSM8K_FILE = DATA_DIR / "gsm8k_test.jsonl"
+
+
+def _caseSkipped(kwargs: dict) -> Optional[str]:
+    """Return a skip reason when a case's required path is missing, else None.
+
+    Agent-tool / terminal cases that operate on bundled data files (e.g.
+    gsm8k_test.jsonl, which is not shipped in the wheel) are skipped rather than
+    failing when the file isn't present.
+    """
+    p = kwargs.get("path")
+    if isinstance(p, str) and "gsm8k_test.jsonl" in p and not Path(p).exists():
+        return "gsm8k_test.jsonl not bundled (see tinytot-ingest gsm8k)"
+    return None
+
+
 def benchmark_agent_tools() -> dict:
     """Benchmark the agent tool library against deterministic local operations."""
     from tinytot.tools_ext import registry
 
     passed = 0
+    skipped = 0
     failed_cases: list[dict] = []
     per_case: list[dict] = []
     total_ms = 0
 
     for desc, tool_name, kwargs, must_contain in _AGENT_TOOL_CASES:
+        skip_reason = _caseSkipped(kwargs)
+        if skip_reason:
+            skipped += 1
+            per_case.append({"name": f"{tool_name}/{desc[:35]}", "passed": None, "skipped": True, "words": 0, "ms": 0})
+            continue
         t0 = time.perf_counter()
         result = registry.run(tool_name, **kwargs)
         ms = int((time.perf_counter() - t0) * 1000)
@@ -1081,7 +1106,8 @@ def benchmark_agent_tools() -> dict:
     return {
         "cases": n,
         "passed": passed,
-        "failed": n - passed,
+        "skipped": skipped,
+        "failed": n - passed - skipped,
         "accuracy": f"{passed}/{n}  ({100 * passed // n}%)",
         "total_ms": total_ms,
         "avg_ms_per_case": total_ms // max(n, 1),
@@ -1200,10 +1226,10 @@ _TERMINAL_CASES = [
         ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
     ),
     (
-        "Show git log of last 3 commits",
+        "Show git describe of current version",
         "shell_run",
-        {"command": "git log --oneline -3"},
-        ["v0.3.0"],
+        {"command": "git describe --tags --abbrev=0"},
+        [f"v{__version__}"],
     ),
     (
         "Count lines in inference.py",
@@ -1238,11 +1264,17 @@ def benchmark_terminal() -> dict:
     from tinytot.tools_ext import registry
 
     passed = 0
+    skipped = 0
     failed_cases: list[dict] = []
     per_case: list[dict] = []
     total_ms = 0
 
     for desc, tool_name, kwargs, must_contain in _TERMINAL_CASES:
+        skip_reason = _caseSkipped(kwargs)
+        if skip_reason:
+            skipped += 1
+            per_case.append({"name": desc[:40], "passed": None, "skipped": True, "words": 0, "ms": 0})
+            continue
         t0 = time.perf_counter()
         result = registry.run(tool_name, **kwargs)
         ms = int((time.perf_counter() - t0) * 1000)
@@ -1267,7 +1299,8 @@ def benchmark_terminal() -> dict:
     return {
         "cases": n,
         "passed": passed,
-        "failed": n - passed,
+        "skipped": skipped,
+        "failed": n - passed - skipped,
         "accuracy": f"{passed}/{n}  ({100 * passed // n}%)",
         "total_ms": total_ms,
         "avg_ms_per_case": total_ms // max(n, 1),
@@ -1279,8 +1312,6 @@ def benchmark_terminal() -> dict:
 # ---------------------------------------------------------------------------
 # Real-world corpus helpers
 # ---------------------------------------------------------------------------
-
-_CORPUS_DIR = DATA_DIR / ".sources" / "corpora"
 
 _CORPUS_URLS: dict[str, str] = {
     # Pillow test images — stable URLs, verified sizes
@@ -1336,14 +1367,34 @@ _MULTILINGUAL_PASSAGES: list[dict] = [
 ]
 
 
-def _fetch_corpus(name: str, url: str, timeout: int = 15) -> Path | None:
-    """Download a corpus file via httpx if not already cached. Returns path or None.
+def _userCacheDir() -> Path:
+    """Return a user-writable cache dir for downloaded corpora.
 
-    Uses httpx so HTTP_PROXY / HTTPS_PROXY / ALL_PROXY env vars are honoured
-    automatically (including SOCKS5 when httpx[socks] is installed).
+    The bundled corpora live inside the installed package (read-only after pip
+    install), so anything that must be downloaded at runtime goes to a
+    per-user cache instead of site-packages.
     """
-    _CORPUS_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _CORPUS_DIR / name
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_CACHE_HOME")
+    if base:
+        return Path(base) / "tinytot" / "corpora"
+    return Path.home() / ".cache" / "tinytot" / "corpora"
+
+
+def _fetch_corpus(name: str, url: str, timeout: int = 15) -> Path | None:
+    """Return a corpus file, preferring the bundled copy, else a user cache.
+
+    Download happens only when the file is neither bundled with the package nor
+    already present in the per-user cache.  Returns the path or None.
+    """
+    # Bundled with the package (ships in the wheel; read-only is fine).
+    bundled = BASE_DATA_DIR / ".sources" / "corpora" / name
+    if bundled.exists() and bundled.stat().st_size > 0:
+        return bundled
+
+    # Otherwise use a per-user writable cache (never site-packages).
+    cache_dir = _userCacheDir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    dest = cache_dir / name
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     try:
@@ -2021,6 +2072,7 @@ def benchmark_novel_routing() -> dict:
 
 
 def main() -> None:
+    ensureUtf8Stdio()
 
     parser = argparse.ArgumentParser(description="Benchmark TinyToT inference at scale")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -2061,6 +2113,12 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.cmd == "gsm8k":
+        if not args.source.exists():
+            print(f"[gsm8k] source not found: {args.source}")
+            print(
+                "[gsm8k] gsm8k_test.jsonl is not shipped with the wheel — run `tinytot-ingest gsm8k <path-to-jsonl>` first, or pass the file explicitly."
+            )
+            return
         r = benchmark_gsm8k(args.source, args.limit)
         if args.json:
             print(json.dumps(r, indent=2))

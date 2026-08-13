@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import pytest
 
-from tinytot.summarize import summarizeDocument
+from tinytot.eval_summarize import _DEFAULT_MAX_WORDS, _parse_eval_file, run_eval
+from tinytot.summarize import (
+    ARC_THRESHOLD,
+    WEIGHT_DIALOGUE_SENTENCE,
+    WEIGHT_OUTCOME_SIGNAL,
+    _buildTfIdf,
+    _cosine,
+    _extractDocumentEntities,
+    _narrativeWeight,
+    _scoreByLexicalCentrality,
+    _splitSentences,
+    summarizeDocument,
+    summarizeFile,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -178,7 +192,6 @@ class TestParseSummarizeEval:
         return f
 
     def test_parses_single_case(self, tmp_path):
-        from tinytot.eval_summarize import _parse_eval_file
 
         md = """## climate-test
 max_words: 30
@@ -198,7 +211,6 @@ The climate is changing rapidly. Greenhouse gases trap heat. Sea levels are risi
         assert cases[0]["max_words"] == 30
 
     def test_parses_multiple_cases(self, tmp_path):
-        from tinytot.eval_summarize import _parse_eval_file
 
         md = """## case-one
 
@@ -226,7 +238,6 @@ Second passage about art.
         assert "case-two" in names
 
     def test_default_max_words_when_omitted(self, tmp_path):
-        from tinytot.eval_summarize import _DEFAULT_MAX_WORDS, _parse_eval_file
 
         md = """## no-words-spec
 
@@ -241,7 +252,6 @@ Some text here.
         assert cases[0]["max_words"] == _DEFAULT_MAX_WORDS
 
     def test_empty_must_contain(self, tmp_path):
-        from tinytot.eval_summarize import _parse_eval_file
 
         md = """## minimal
 
@@ -255,7 +265,6 @@ Just some text without must-contain section.
             assert isinstance(cases[0].get("must_contain", []), list)
 
     def test_input_extracted_correctly(self, tmp_path):
-        from tinytot.eval_summarize import _parse_eval_file
 
         md = """## test-input
 
@@ -270,7 +279,6 @@ This is the exact input text to summarize.
         assert cases[0]["input"] == "This is the exact input text to summarize."
 
     def test_missing_file_raises(self):
-        from tinytot.eval_summarize import _parse_eval_file
 
         with pytest.raises(Exception):
             _parse_eval_file(Path("/no/such/eval.md"))
@@ -280,7 +288,6 @@ class TestRunSummarizeEval:
     """Integration: run eval on a synthetic eval file."""
 
     def test_run_passes_simple_case(self, tmp_path):
-        from tinytot.eval_summarize import run_eval
 
         md = """## easy
 
@@ -297,7 +304,6 @@ The Eiffel Tower is in Paris. It is a famous landmark. Millions visit each year.
         assert passed is True
 
     def test_run_detects_failure(self, tmp_path):
-        from tinytot.eval_summarize import run_eval
 
         md = """## impossible
 
@@ -313,7 +319,6 @@ Short text.
         assert passed is False
 
     def test_run_returns_false_for_empty_file(self, tmp_path):
-        from tinytot.eval_summarize import run_eval
 
         f = tmp_path / "empty.md"
         f.write_text("# no cases\n")
@@ -328,7 +333,6 @@ Short text.
 
 class TestSplitSentences:
     def test_basic_split(self):
-        from tinytot.summarize import _splitSentences
 
         sents = _splitSentences(
             "The quick brown fox jumps over the lazy dog. "
@@ -338,7 +342,6 @@ class TestSplitSentences:
         assert len(sents) >= 2
 
     def test_filters_very_short_fragments(self):
-        from tinytot.summarize import _splitSentences
 
         sents = _splitSentences("Hi. OK. The quick brown fox jumps over the lazy dog today.")
         # Very short sentences ("Hi", "OK") should be filtered
@@ -346,12 +349,10 @@ class TestSplitSentences:
             assert len(s.split()) >= 2
 
     def test_empty_input(self):
-        from tinytot.summarize import _splitSentences
 
         assert _splitSentences("") == []
 
     def test_single_long_sentence(self):
-        from tinytot.summarize import _splitSentences
 
         sentence = "Machine learning enables computers to learn from data without explicit programming rules."
         sents = _splitSentences(sentence)
@@ -360,21 +361,18 @@ class TestSplitSentences:
 
 class TestBuildTfIdf:
     def test_empty_input(self):
-        from tinytot.summarize import _buildTfIdf
 
         vecs, idf = _buildTfIdf([])
         assert vecs == []
         assert idf == {}
 
     def test_single_sentence(self):
-        from tinytot.summarize import _buildTfIdf
 
         vecs, idf = _buildTfIdf(["machine learning is important"])
         assert len(vecs) == 1
         assert len(idf) >= 1
 
     def test_multiple_sentences(self):
-        from tinytot.summarize import _buildTfIdf
 
         sents = [
             "Python is a programming language.",
@@ -384,7 +382,6 @@ class TestBuildTfIdf:
         vecs, idf = _buildTfIdf(sents)
         assert len(vecs) == len(sents)
         # All vectors should be normalised (unit norm or near)
-        import math
 
         for v in vecs:
             if v:
@@ -392,7 +389,6 @@ class TestBuildTfIdf:
                 assert abs(norm - 1.0) < 0.01
 
     def test_idf_penalises_common_terms(self):
-        from tinytot.summarize import _buildTfIdf
 
         # "the" appears in every sentence — should have low IDF
         sents = ["the cat sat", "the dog ran", "the bird flew"]
@@ -404,20 +400,17 @@ class TestBuildTfIdf:
 
 class TestCosine:
     def test_identical_vectors(self):
-        from tinytot.summarize import _cosine
 
         v = {"a": 0.6, "b": 0.8}
         assert abs(_cosine(v, v) - 1.0) < 0.01
 
     def test_orthogonal_vectors(self):
-        from tinytot.summarize import _cosine
 
         a = {"x": 1.0}
         b = {"y": 1.0}
         assert _cosine(a, b) == 0.0
 
     def test_partial_overlap(self):
-        from tinytot.summarize import _cosine
 
         a = {"x": 0.6, "y": 0.8}
         b = {"y": 1.0}
@@ -427,18 +420,15 @@ class TestCosine:
 
 class TestScoreByLexicalCentrality:
     def test_empty(self):
-        from tinytot.summarize import _scoreByLexicalCentrality
 
         assert _scoreByLexicalCentrality([]) == []
 
     def test_single_vector(self):
-        from tinytot.summarize import _scoreByLexicalCentrality
 
         scores = _scoreByLexicalCentrality([{"a": 1.0}])
         assert len(scores) == 1
 
     def test_multiple_vectors_returns_scores(self):
-        from tinytot.summarize import _buildTfIdf, _scoreByLexicalCentrality
 
         sents = [
             "Python is popular for data science.",
@@ -453,26 +443,22 @@ class TestScoreByLexicalCentrality:
 
 class TestNarrativeWeight:
     def test_plain_sentence_weight_one(self):
-        from tinytot.summarize import _narrativeWeight
 
         w = _narrativeWeight("The weather was cold.")
         assert w >= 1.0
 
     def test_dialogue_penalised(self):
-        from tinytot.summarize import WEIGHT_DIALOGUE_SENTENCE, _narrativeWeight
 
         w = _narrativeWeight('"I need help," said Alice.')
         assert w == WEIGHT_DIALOGUE_SENTENCE
 
     def test_plot_verb_boosted(self):
-        from tinytot.summarize import _narrativeWeight
 
         w_plain = _narrativeWeight("The cat was on the mat.")
         w_action = _narrativeWeight("Alice discovered a secret door.")
         assert w_action >= w_plain
 
     def test_outcome_signal_boosted(self):
-        from tinytot.summarize import WEIGHT_OUTCOME_SIGNAL, _narrativeWeight
 
         # "ruled" and "sentenced" are in the outcome signal pattern
         w = _narrativeWeight("The court ruled in favour of the defendant.")
@@ -480,7 +466,6 @@ class TestNarrativeWeight:
         assert w >= WEIGHT_OUTCOME_SIGNAL
 
     def test_named_entity_boosted(self):
-        from tinytot.summarize import _narrativeWeight
 
         w_no_entity = _narrativeWeight("the weather was warm and sunny.")
         w_entity = _narrativeWeight("Alice walked through the forest.")
@@ -489,7 +474,6 @@ class TestNarrativeWeight:
 
 class TestSummarizeFile:
     def test_existing_file(self, tmp_path):
-        from tinytot.summarize import summarizeFile
 
         f = tmp_path / "doc.txt"
         f.write_text(
@@ -504,13 +488,11 @@ class TestSummarizeFile:
         assert len(result.strip()) > 0
 
     def test_missing_file_returns_error(self):
-        from tinytot.summarize import summarizeFile
 
         result = summarizeFile("/no/such/file_xyz_12345.txt")
         assert "not found" in result.lower() or "error" in result.lower() or "File" in result
 
     def test_path_object_accepted(self, tmp_path):
-        from tinytot.summarize import summarizeFile
 
         f = tmp_path / "doc2.txt"
         f.write_text("Short test document. It has two sentences.")
@@ -545,7 +527,6 @@ class TestArcAwareSummarise:
 
     def test_arc_aware_path_triggered(self):
         """Documents above ARC_THRESHOLD sentences use the arc-aware path."""
-        from tinytot.summarize import ARC_THRESHOLD, _splitSentences, summarizeDocument
 
         sents = _splitSentences(self._LONG_NARRATIVE)
         # If the document is long enough the arc-aware path will be used
@@ -601,7 +582,6 @@ class TestArcAwareSummarise:
 
 class TestExtractDocumentEntities:
     def test_extracts_capitalised_names(self):
-        from tinytot.summarize import _buildTfIdf, _extractDocumentEntities, _splitSentences
 
         text = (
             "Alice met Bob at the library every morning for several weeks. "
@@ -617,7 +597,6 @@ class TestExtractDocumentEntities:
             assert entity_pattern is not None
 
     def test_returns_compiled_pattern(self):
-        from tinytot.summarize import _buildTfIdf, _extractDocumentEntities, _splitSentences
 
         text = (
             "Thomas worked at the lighthouse every single night without exception. "
@@ -633,7 +612,6 @@ class TestExtractDocumentEntities:
             assert hasattr(pattern, "search")
 
     def test_empty_sentences(self):
-        from tinytot.summarize import _extractDocumentEntities
 
         pattern = _extractDocumentEntities([], {})
         assert pattern is not None  # Should return a fallback pattern

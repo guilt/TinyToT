@@ -9,12 +9,15 @@ Three layers tested:
 
 from __future__ import annotations
 
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from tinytot.agent import detectAgentNeeds
-from tinytot.tools_ext import TranslateTool
+import httpx
+
+from tinytot.agent import LearningJournal, PlanExecuteLoop, _extract_params, detectAgentNeeds
+from tinytot.tools_ext import TranslateTool, registry
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,7 +41,6 @@ def _mock_httpx(translations: dict[str, str]):
     - LibreTranslate local server is unreachable (post raises)
     - Google Translate returns mocked translations via get
     """
-    import httpx
 
     def _fake_get(url, **kwargs):
         params = kwargs.get("params", {})
@@ -129,7 +131,6 @@ class TestTranslateToolDirect:
         """Texts over 4900 chars are split into multiple API calls."""
         long_text = "こんにちは。" * 900  # ~5400 chars
         call_count = [0]
-        import httpx
 
         def _fake_get(url, **kwargs):
             call_count[0] += 1
@@ -159,7 +160,6 @@ class TestTranslateToolDirect:
 
     def test_network_error_returns_error_string(self):
         """When ct2 has no pack and all network backends fail, returns [translate] error."""
-        import httpx
 
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -237,12 +237,7 @@ class TestCrossLanguageBridging:
             with patch(
                 "tinytot.inference.generateTreeOfThoughtsResponse", return_value="Machine learning is a subset of AI."
             ):
-                import tempfile
-
-                from tinytot.agent import LearningJournal, PlanExecuteLoop
-
                 loop = PlanExecuteLoop.__new__(PlanExecuteLoop)
-                from tinytot.tools_ext import registry
 
                 loop._tools = registry
                 loop._journal = LearningJournal(journal_dir=Path(tempfile.mkdtemp()))
@@ -302,7 +297,6 @@ class TestCrossLanguageBridging:
 
     def test_translation_target_extraction(self):
         """_extract_params extracts language targets from natural-language descriptions."""
-        from tinytot.agent import _extract_params
 
         cases = [
             ("translate to Korean", "korean"),
@@ -318,7 +312,6 @@ class TestCrossLanguageBridging:
 
     def test_translation_error_is_string_not_exception(self):
         """Network errors return an error string, never raise."""
-        import httpx
 
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)

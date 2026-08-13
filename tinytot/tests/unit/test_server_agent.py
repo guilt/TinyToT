@@ -5,6 +5,7 @@ Also covers inference.py gaps: agent dispatch, live-data, yes/no, summarize mode
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from tinytot.content import getCategories, loadReasoningChains
+from tinytot.inference import generateReasoningResponse
 from tinytot.retrieval import buildChainIndex, buildKnowledgeIndex
 from tinytot.server import app
 
@@ -288,7 +290,6 @@ async def test_openai_models_returns_tinytot(client):
 
 class TestInferenceAgentDispatch:
     def test_agent_dispatch_fires_on_url(self):
-        from tinytot.inference import generateReasoningResponse
 
         with patch("tinytot.inference.detectAgentNeeds", return_value=True):
             with patch("tinytot.inference.agentResponse", return_value="agent result") as mock_agent:
@@ -298,7 +299,6 @@ class TestInferenceAgentDispatch:
         assert result == "agent result"
 
     def test_agent_dispatch_skipped_for_simple_query(self):
-        from tinytot.inference import generateReasoningResponse
 
         with patch("tinytot.inference.detectAgentNeeds", return_value=False):
             with patch("tinytot.inference.agentResponse") as mock_agent:
@@ -307,7 +307,6 @@ class TestInferenceAgentDispatch:
         mock_agent.assert_not_called()
 
     def test_session_id_passed_to_agent(self):
-        from tinytot.inference import generateReasoningResponse
 
         with patch("tinytot.inference.detectAgentNeeds", return_value=True):
             with patch("tinytot.inference.agentResponse", return_value="ok") as mock_agent:
@@ -319,7 +318,6 @@ class TestInferenceAgentDispatch:
 
 class TestInferenceLiveDataGuard:
     def test_live_weather_returns_no_data_message(self):
-        from tinytot.inference import generateReasoningResponse
 
         with patch("tinytot.inference.detectAgentNeeds", return_value=False):
             result = generateReasoningResponse("what is the current weather in Tokyo")
@@ -327,7 +325,6 @@ class TestInferenceLiveDataGuard:
         assert "live" in result.lower() or "real-time" in result.lower() or "don't have" in result.lower()
 
     def test_current_stock_price_returns_no_data(self):
-        from tinytot.inference import generateReasoningResponse
 
         with patch("tinytot.inference.detectAgentNeeds", return_value=False):
             result = generateReasoningResponse("what is the current stock price for Apple today")
@@ -337,7 +334,6 @@ class TestInferenceLiveDataGuard:
 
 class TestInferenceSummarizeMode:
     def test_summarize_mode_with_long_text(self):
-        from tinytot.inference import generateReasoningResponse
 
         long_text = "summarize: " + " ".join(["The cat sat on the mat."] * 50)
         result = generateReasoningResponse(long_text)
@@ -345,13 +341,11 @@ class TestInferenceSummarizeMode:
         assert len(result.strip()) > 0
 
     def test_summarize_prompt_without_text_returns_guidance(self):
-        from tinytot.inference import generateReasoningResponse
 
         result = generateReasoningResponse("please summarize this document")
         assert isinstance(result, str)
 
     def test_word_budget_extracted_from_prompt(self):
-        from tinytot.inference import generateReasoningResponse
 
         long_text = "summarize in 10 words: " + " ".join(["word"] * 200)
         result = generateReasoningResponse(long_text)
@@ -360,14 +354,12 @@ class TestInferenceSummarizeMode:
 
 class TestInferenceYesNo:
     def test_yes_no_question_gets_answer(self):
-        from tinytot.inference import generateReasoningResponse
 
         result = generateReasoningResponse("Is Python a programming language?")
         assert isinstance(result, str)
         assert len(result.strip()) > 0
 
     def test_yes_no_starts_with_yes_or_no_or_passage(self):
-        from tinytot.inference import generateReasoningResponse
 
         result = generateReasoningResponse("Is the sky blue?")
         # Should start with Yes/No or return a passage
@@ -376,22 +368,18 @@ class TestInferenceYesNo:
 
 class TestInferenceJsonScoring:
     def test_json_scoring_returns_valid_json(self):
-        from tinytot.inference import generateReasoningResponse
 
         prompt = 'Please reply with JSON {"score": X, "rationale": "..."} for this response: Paris is in France.'
         result = generateReasoningResponse(prompt)
-        import json
 
         parsed = json.loads(result)
         assert "score" in parsed
         assert "rationale" in parsed
 
     def test_json_score_is_float(self):
-        from tinytot.inference import generateReasoningResponse
 
         prompt = 'Return JSON {"score": X} for: The Eiffel Tower is in Paris.'
         result = generateReasoningResponse(prompt)
-        import json
 
         parsed = json.loads(result)
         assert isinstance(parsed["score"], (int, float))

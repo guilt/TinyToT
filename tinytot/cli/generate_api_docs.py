@@ -375,6 +375,9 @@ def generate_index(index: Dict[str, List[Tuple[str, str]]]) -> None:
 
 
 def main() -> None:
+    from tinytot._stdio import ensureUtf8Stdio
+
+    ensureUtf8Stdio()
     print(f"Generating API docs for {ROOT_PACKAGE} ...\n")
     index = discover_and_document()
     generate_index(index)

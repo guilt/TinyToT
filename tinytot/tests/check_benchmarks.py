@@ -34,6 +34,8 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional
 
+from tinytot._stdio import ensureUtf8Stdio
+
 # ---------------------------------------------------------------------------
 # Baseline I/O
 # ---------------------------------------------------------------------------
@@ -207,6 +209,7 @@ def check(scores: Dict[str, int], report_only: bool = False) -> int:
 
 
 def main() -> int:
+    ensureUtf8Stdio()
     update = "--update-baseline" in sys.argv
     report = "--report-only" in sys.argv
 

@@ -39,6 +39,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ._stdio import ensureUtf8Stdio
 from .content import VARIANTS_DIR as _VARIANTS_DIR
 
 __all__ = ["clone"]
@@ -131,6 +132,8 @@ def clone(
 
 def _cli() -> None:
     import argparse
+
+    ensureUtf8Stdio()
 
     parser = argparse.ArgumentParser(
         prog="tinytot-clone",

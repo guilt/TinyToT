@@ -456,60 +456,40 @@ class TestExplainReasoning:
 
 class TestReviewIntent:
     def test_is_this_good_enough(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Is this good enough?") == "review"
 
     def test_does_this_work(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Does this work?") == "review"
 
     def test_looks_good(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Looks good?") == "review"
 
     def test_any_issues(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Any issues?") == "review"
 
     def test_can_we_improve(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Can we improve this?") == "review"
 
     def test_fresh_question_not_review(self):
-        from tinytot.refine import detectRefinementIntent
-
         assert detectRefinementIntent("Write a fibonacci function") is None
 
     def test_review_suggestions_for_bare_code(self):
-        from tinytot.refine import applyRefinement
-
         code = "def fib(n):\n    return n if n <= 1 else fib(n-1) + fib(n-2)"
         result = applyRefinement("review", code)
         assert result is not None
         assert isinstance(result, str) and len(result) > 0
 
     def test_review_identifies_missing_docstring(self):
-        from tinytot.refine import applyRefinement
-
         code = "def add(a, b):\n    return a + b"
         result = applyRefinement("review", code)
         assert "docstring" in result.lower()
 
     def test_review_identifies_missing_error_handling(self):
-        from tinytot.refine import applyRefinement
-
         code = "def divide(a, b):\n    return a / b"
         result = applyRefinement("review", code)
         assert "error" in result.lower() or "except" in result.lower()
 
     def test_review_clean_code_passes(self):
-        from tinytot.refine import applyRefinement
-
         code = (
             '"""Add two numbers."""\n'
             "def add(a: int, b: int) -> int:\n"
@@ -523,8 +503,6 @@ class TestReviewIntent:
         assert "looks good" in result.lower() or "no changes" in result.lower() or isinstance(result, str)
 
     def test_review_syntax_error_reported(self):
-        from tinytot.refine import applyRefinement
-
         code = "def broken(:\n    pass"
         result = applyRefinement("review", code)
         assert result is not None

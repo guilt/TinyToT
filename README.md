@@ -401,7 +401,9 @@ tinytot/
       summarize_eval.md    11-domain summarization benchmark cases
     schema/
       information_patterns.md  tool dispatch patterns
-    .sources/         runtime clones (gitignored, populated by tinytot-ingest)
+    .sources/
+      corpora/         benchmark fixtures (images, CSV, README) shipped in the wheel
+      (runtime clones  gitignored, populated by tinytot-ingest)
     journal/          agent learning journal (gitignored, runtime per-machine)
 ```
 

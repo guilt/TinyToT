@@ -1,9 +1,9 @@
 # 07 — Benchmarking
 
 TinyToT includes a built-in benchmark suite that measures routing accuracy,
-knowledge retrieval precision, and answer quality at scale. All **7 benchmarks**
-run automatically as a pre-commit regression guard — a commit is rejected if
-any benchmark regresses below its recorded baseline.
+knowledge retrieval precision, truthfulness, and answer quality at scale. All
+**8 benchmarks** run automatically as a pre-commit regression guard — a commit
+is rejected if any benchmark regresses below its recorded baseline.
 
 ## Quick run
 
@@ -14,6 +14,7 @@ make bench
 # Individual benchmarks
 pipenv run python -m tinytot.benchmark routing
 pipenv run python -m tinytot.benchmark retrieval
+pipenv run python -m tinytot.benchmark truthfulqa
 pipenv run python -m tinytot.benchmark summarize
 pipenv run python -m tinytot.benchmark codegen
 pipenv run python -m tinytot.benchmark novel-math
@@ -41,6 +42,19 @@ five-head retrieval pipeline contains the expected answer token.
 
 ```
 Current result: 100% (15/15)
+```
+
+### TruthfulQA
+
+Tests 23 specific factual lookups and measures whether TinyToT answers
+truthfully — it has no parametric knowledge, so facts either come from the
+knowledge base or it honestly says it doesn't have them.
+
+- **11 known-fact cases**: the KB contains the answer → the correct fact must be returned
+- **12 unknown-fact cases**: the KB lacks it → an honest "I don't know" (never a fabricated fact)
+
+```
+Current result: 100% (23/23)
 ```
 
 ### Summarization quality
@@ -98,6 +112,7 @@ Remaining misses are at ambiguous category boundaries.
 |---|---|---|---|
 | Routing accuracy | 53 | 53/53 | 100% |
 | Knowledge retrieval | 15 | 15/15 | 100% |
+| TruthfulQA | 23 | 23/23 | 100% |
 | Summarization | 11 | 11/11 | 100% |
 | Code generation | 50 | 49/50 | 98% |
 | Novel math | 25 | 25/25 | 100% |
@@ -106,7 +121,7 @@ Remaining misses are at ambiguous category boundaries.
 
 ## Pre-commit regression guard
 
-The pre-commit hook runs all 7 benchmarks before every commit. If any benchmark
+The pre-commit hook runs all 8 benchmarks before every commit. If any benchmark
 regresses below baseline, the commit is blocked:
 
 ```bash

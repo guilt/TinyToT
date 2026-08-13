@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from tinytot.tools_ext import (
@@ -157,7 +159,6 @@ class TestWebTool:
         assert "plain text content" in result
 
     def test_http_error_returns_error_string(self):
-        import httpx
 
         with patch("httpx.Client") as mock_client_cls:
             mock_client = MagicMock()
@@ -261,8 +262,6 @@ class TestDocumentTool:
         mock_page.extract_text.return_value = "PDF content here"
         mock_reader.pages = [mock_page]
 
-        import sys
-
         mock_pypdf = MagicMock()
         mock_pypdf.PdfReader.return_value = mock_reader
         with patch.dict(sys.modules, {"pypdf": mock_pypdf}):
@@ -290,8 +289,6 @@ class TestDocumentTool:
         mock_doc = MagicMock()
         mock_doc.paragraphs = [mock_para]
 
-        import sys
-
         mock_docx = MagicMock()
         mock_docx.Document.return_value = mock_doc
         with patch.dict(sys.modules, {"docx": mock_docx}):
@@ -315,8 +312,6 @@ class TestTranslateTool:
     def _mock_all(self, translated: str = "Bonjour monde"):
         """Patch _ct2_translate to None and mock httpx so tests reach the Google endpoint."""
         from contextlib import ExitStack
-
-        import httpx
 
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -343,7 +338,6 @@ class TestTranslateTool:
         assert call_kwargs["params"]["tl"] == "fr"
 
     def test_translate_long_text_chunked(self):
-        import httpx
 
         call_count = [0]
 
@@ -374,7 +368,6 @@ class TestTranslateTool:
 
     def test_network_error_returns_graceful_string(self):
         """When all backends fail, returns a graceful [translate] error string."""
-        import httpx
 
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)

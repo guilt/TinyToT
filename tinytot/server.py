@@ -28,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__
+from ._stdio import ensureUtf8Stdio
 from .agent import LearningJournal, agentResponse
 from .inference import RESPONSE_TOOL_REASONING, generateReasoningResponse
 from .summarize import summarizeDocument
@@ -608,6 +609,8 @@ def main():
     import argparse
     import signal
     import sys
+
+    ensureUtf8Stdio()
 
     parser = argparse.ArgumentParser(
         prog="tinytot",

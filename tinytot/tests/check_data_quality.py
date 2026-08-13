@@ -34,6 +34,7 @@ import re
 import sys
 from typing import List, Tuple
 
+from tinytot._stdio import ensureUtf8Stdio
 from tinytot.content import CATEGORY_DIR as _CATEGORY_DIR
 from tinytot.content import DATA_DIR as _DATA_DIR
 from tinytot.content import KNOWLEDGE_DIR as _KNOWLEDGE_DIR
@@ -364,6 +365,7 @@ def run_all_checks() -> int:
 
 
 def main() -> int:
+    ensureUtf8Stdio()
     return run_all_checks()
 
 
