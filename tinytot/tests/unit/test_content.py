@@ -238,6 +238,43 @@ class TestLoadKnowledgePassagesHermesDetection:
         assert len(passages) == 2
         loadKnowledgePassages.cache_clear()
 
+
+# ---------------------------------------------------------------------------
+# clearContentCaches
+# ---------------------------------------------------------------------------
+
+
+class TestClearContentCaches:
+    def test_clears_all_content_caches(self, category_dir):
+        from tinytot.content import clearContentCaches
+
+        getCategories(category_dir)
+        loadReasoningChains("math.md", category_dir)
+
+        assert getCategories.cache_info().currsize > 0
+        assert loadReasoningChains.cache_info().currsize > 0
+
+        clearContentCaches()
+
+        assert getCategories.cache_info().currsize == 0
+        assert loadReasoningChains.cache_info().currsize == 0
+
+    def test_picks_up_new_category_after_clear(self, tmp_path):
+        from tinytot.content import clearContentCaches
+
+        cat_dir = tmp_path / "cats"
+        cat_dir.mkdir()
+        (cat_dir / "math.md").write_text("## Chain 1: A\nThought 1: step one\n")
+        assert getCategories(cat_dir) == {"math": "math.md"}
+
+        # A category file is dropped while the server runs
+        (cat_dir / "physics.md").write_text("## Chain 1: B\nThought 1: step one\n")
+        clearContentCaches()
+
+        cats = getCategories(cat_dir)
+        assert "physics" in cats
+        assert cats["physics"] == "physics.md"
+
     def test_plain_and_hermes_mixed(self, tmp_path):
         from tinytot.content import loadKnowledgePassages
 

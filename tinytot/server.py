@@ -543,6 +543,49 @@ async def openai_models():
     }
 
 
+@app.post("/api/reload")
+@app.get("/api/reload")
+async def reload_data(knowledge_only: bool = False):
+    """Hot-reload knowledge (and optionally all indexes) from disk without restarting.
+
+    After dropping or editing .md files under tinytot/_data/knowledge/ (or
+    categories/), call this endpoint so the new content becomes available
+    immediately.
+
+    Query parameter:
+      knowledge_only=true  — only clear + rebuild knowledge indexes (default: false = full reload)
+
+    Example::
+
+        curl -X POST http://localhost:11434/api/reload
+        curl "http://localhost:11434/api/reload?knowledge_only=true"
+    """
+    from .content import clearContentCaches, loadKnowledgePassages
+    from .retrieval import (
+        buildChainIndex,
+        buildChainMeta,
+        buildKnowledgeIndex,
+        clearRetrievalCaches,
+    )
+
+    clearContentCaches()
+    clearRetrievalCaches()
+
+    # Eager rebuild so the first real request after reload is fast
+    n_passages = len(loadKnowledgePassages())
+    buildKnowledgeIndex()
+    if not knowledge_only:
+        buildChainIndex()
+        buildChainMeta()
+
+    logger.info("Reload complete — %d knowledge passages", n_passages)
+    return {
+        "status": "reloaded",
+        "knowledge_passages": n_passages,
+        "knowledge_only": knowledge_only,
+    }
+
+
 @app.post("/api/quit")
 @app.get("/api/quit")
 async def quit_server():

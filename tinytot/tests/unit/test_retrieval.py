@@ -250,3 +250,59 @@ class TestScoreResponse:
         empty.mkdir()
         result = scoreResponse("test text", empty)
         assert isinstance(result, float)
+
+
+# ---------------------------------------------------------------------------
+# clearRetrievalCaches
+# ---------------------------------------------------------------------------
+
+
+class TestClearRetrievalCaches:
+    def test_clears_all_retrieval_caches(self, category_dir):
+        from tinytot.retrieval import (
+            _knowledgeAvgDocLen,
+            buildChainIndex,
+            buildChainMeta,
+            buildKnowledgeIndex,
+            clearRetrievalCaches,
+        )
+
+        buildChainIndex(category_dir)
+        buildChainMeta(category_dir)
+        buildKnowledgeIndex.cache_clear()
+        buildKnowledgeIndex()
+        _knowledgeAvgDocLen()
+
+        assert buildChainIndex.cache_info().currsize > 0
+        assert buildChainMeta.cache_info().currsize > 0
+        assert buildKnowledgeIndex.cache_info().currsize > 0
+        assert _knowledgeAvgDocLen.cache_info().currsize > 0
+
+        clearRetrievalCaches()
+
+        assert buildChainIndex.cache_info().currsize == 0
+        assert buildChainMeta.cache_info().currsize == 0
+        assert buildKnowledgeIndex.cache_info().currsize == 0
+        assert _knowledgeAvgDocLen.cache_info().currsize == 0
+
+    def test_rebuilds_index_after_clear(self, tmp_path):
+        from tinytot.content import clearContentCaches
+        from tinytot.retrieval import buildKnowledgeIndex, clearRetrievalCaches
+
+        kdir = tmp_path / "knowledge"
+        kdir.mkdir()
+        (kdir / "one.md").write_text("Alpha fact: the sky is blue.")
+
+        buildKnowledgeIndex(kdir)
+        entries_before, _, _ = buildKnowledgeIndex(kdir)
+        assert len(entries_before) == 1
+
+        # New knowledge file dropped while the server runs — the /api/reload
+        # endpoint clears content AND retrieval caches (buildKnowledgeIndex
+        # depends on loadKnowledgePassages which is a content-layer cache).
+        (kdir / "two.md").write_text("Beta fact: the sea is salty.")
+        clearContentCaches()
+        clearRetrievalCaches()
+
+        entries_after, _, _ = buildKnowledgeIndex(kdir)
+        assert len(entries_after) == 2

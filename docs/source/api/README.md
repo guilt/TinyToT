@@ -41,6 +41,7 @@ tinytot.compute — Safe arithmetic, unit conversion, date reasoning, and word-p
 
 tinytot.content — chain loading, category discovery, schema parsing.
 
+- [clearContentCaches](clearcontentcaches.md)
 - [loadHermesJournal](loadhermesjournal.md)
 - [loadToolPatterns](loadtoolpatterns.md)
 
@@ -81,6 +82,7 @@ tinytot.retrieval — Multi-headed TF-IDF retrieval, chain ranking, categorizati
 
 - [categorizePrompt](categorizeprompt.md)
 - [chainVector](chainvector.md)
+- [clearRetrievalCaches](clearretrievalcaches.md)
 - [cosineSim](cosinesim.md)
 - [findKnowledgeAnswer](findknowledgeanswer.md)
 - [multiHeadScore](multiheadscore.md)
