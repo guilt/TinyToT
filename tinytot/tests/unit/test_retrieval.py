@@ -164,6 +164,26 @@ class TestCategorizePrompt:
         cat = categorizePrompt("xyzzy quux blorple frobozz", category_dir)
         assert isinstance(cat, str)
 
+    def test_rate_word_problem_routes_to_math(self, category_dir):
+        cat = categorizePrompt(
+            "A train leaves Station A at 2:00 PM traveling at 60 mph toward Station B, which is 150 miles away. "
+            "At what clock time do the two trains meet?",
+            category_dir,
+        )
+        assert cat == "math"
+
+    def test_rate_rule_requires_math_category(self, tmp_path):
+        # No math category in the index → rate rule falls back to normal scoring.
+        d = tmp_path / "cats"
+        d.mkdir()
+        (d / "tool_calling.md").write_text(
+            "---\ncategory: tool_calling\nkeywords: search, browse, web\n---\n\n"
+            "# Tools\n\n## Chain 1: Search\n<!-- Handles: search, web -->\nThought 1: search the web.\nConclusion: done.\n",
+            encoding="utf-8",
+        )
+        cat = categorizePrompt("A car travels at 60 mph for 2 hours. How far does it go?", d)
+        assert cat != "math"  # must not invent a category that does not exist
+
 
 # ---------------------------------------------------------------------------
 # scoreChain / rankChains

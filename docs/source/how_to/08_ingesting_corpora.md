@@ -21,6 +21,10 @@ is needed for code templates. The knowledge and routing indexes are cached
 per-process; after adding new knowledge files, hot-reload with
 `curl -X POST http://localhost:11434/api/reload` or restart the server.
 
+> Note: auto-ingested trace chains (`opencode_augment_*`, `opentraces_augment_*`)
+> are excluded from the routing index by design — see the
+> [opencode ingestion](#ingest-opencode-session-traces) section below.
+
 ---
 
 ## 2 — Ingesting knowledge passages
@@ -102,6 +106,52 @@ tinytot-ingest tot-princeton
 Produces:
 - `tinytot/_data/categories/game24.md` — reasoning chains for the 24-game
 - `tinytot/_data/categories/creative_writing.md` — text coherence chains
+
+### Ingest opencode session traces
+
+`opencode export` produces one JSON file per session. TinyToT ingests them as
+reasoning chains, preserving parity metadata (provider, model, token counts) in
+chain comments:
+
+```bash
+# Export sessions (opencode CLI must be on PATH)
+opencode export <session-id> -o tinytot/_data/.sources/opencode/
+
+# Ingest the exports
+tinytot-ingest opencode
+
+# Optional: auto-export a session id before ingesting (repeatable)
+tinytot-ingest opencode --session <session-id>
+```
+
+Produces `tinytot/_data/categories/opencode_augment_*.md` — one file per
+classified domain (e.g. `opencode_augment_debug.md`, `opencode_augment_general.md`,
+`opencode_augment_programming.md`). Each session's task is classified by domain
+via `_classifyTaskDomain` (including the `math` domain for rate word problems)
+and appended as a `## Chain N:` entry.
+
+- Augment files are **excluded from the routing index** (`buildChainIndex` skips
+  `opencode_*` / `opentraces_augment_*` files) so they don't pollute routing.
+- They are loaded for reasoning and parity analysis via `loadOpenCodeChains`.
+- Use `--limit N` to cap sessions and `--max-chains N` to cap chains per category.
+- See [Reasoning Chains](03_reasoning_chains.md) for the chain format.
+
+### Ingest OpenTraces (Hugging Face)
+
+```bash
+tinytot-ingest opentraces
+```
+
+Downloads OpenTraces agent reasoning traces from Hugging Face and classifies
+each trace by domain, appending chains to the matching existing category
+(e.g. `python` → programming, `debugging` → debug). Traces that don't map to an
+existing category are written to `opentraces_augment_general_*`.
+
+### Ingest everything
+
+```bash
+tinytot-ingest all
+```
 
 ### Ingest BIG-bench tasks
 

@@ -36,6 +36,7 @@ tinytot.compute — Safe arithmetic, unit conversion, date reasoning, and word-p
 
 - [detectComputePrompt](detectcomputeprompt.md)
 - [solveCompute](solvecompute.md)
+- [solvePreciseWordProblem](solveprecisewordproblem.md)
 
 ## `tinytot.content`
 

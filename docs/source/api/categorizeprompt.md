@@ -14,3 +14,7 @@ Return best-matching category name via TF-IDF cosine similarity.
     scoring is applied to knowledge passage retrieval (findKnowledgeAnswer)
     where it improves precision, but routing accuracy is already high with
     single-head TF-IDF + keyword repeat boosting and multi-head adds noise.
+
+    Relative-motion rate problems (speeds in mph/km/h) are routed to the
+    ``math`` category when one exists: TF-IDF otherwise scatters them onto
+    unrelated chains (e.g. ``agent``), producing nonsense reasoning traces.

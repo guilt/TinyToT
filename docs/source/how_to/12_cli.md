@@ -110,3 +110,67 @@ alias tot='tinytot -p'
 tot "What is the speed of light?"
 # → The speed of light in a vacuum is approximately 299,792,458 metres per second...
 ```
+
+---
+
+## Reasoning parity (`tinytot-parity`)
+
+Analyses opencode session exports and compares TinyToT's reasoning/routing
+against the models that produced the traces.
+
+```
+tinytot-parity [export_dir] {fidelity,cross,routing,all} [--json] [--category-dir DIR]
+```
+
+| Check | What it measures |
+|---|---|
+| `fidelity` | Extraction fidelity of the reasoning trace vs. the original export |
+| `cross` | Cross-provider reasoning similarity (jaccard) |
+| `routing` | TinyToT routing parity: routed category vs. expected category per export |
+| `all` | Run all three checks (default) |
+
+| Flag | Description |
+|---|---|
+| `export_dir` | Directory of opencode session exports (default: `data/.sources/opencode`) |
+| `--json` | Emit raw JSON instead of a text report |
+| `--category-dir DIR` | Category dir used for routing parity |
+
+**Examples:**
+
+```bash
+tinytot-parity                 # all checks on the default export dir
+tinytot-parity routing         # routing parity only
+tinytot-parity all --json      # machine-readable output
+tinytot-parity fidelity /path/to/exports
+```
+
+---
+
+## Trace ingestion (`tinytot-ingest`)
+
+Ingests trace corpora into TinyToT categories.
+
+```
+tinytot-ingest {gsm8k,tot-princeton,opentraces,opencode,cs-chains,translate-packs,all}
+```
+
+| Source | What it does |
+|---|---|
+| `gsm8k` | GSM8K math JSONL → `data/knowledge/gsm8k_test.md` |
+| `tot-princeton` | Clone/update princeton-nlp/tree-of-thought-llm → game24 + creative_writing chains |
+| `opentraces` | Download OpenTraces from Hugging Face → classify into existing categories |
+| `opencode` | Ingest `opencode export` sessions → `opencode_augment_*.md` chains |
+| `cs-chains` | Generate curated CS reasoning chains (algorithms, data structures, system design) |
+| `translate-packs` | Install argostranslate language packs for offline translation |
+| `all` | Run every source |
+
+**Examples:**
+
+```bash
+tinytot-ingest opencode                       # ingest exported sessions
+tinytot-ingest opencode --session <id>        # export then ingest
+tinytot-ingest opencode --limit 10            # cap sessions processed
+tinytot-ingest all
+```
+
+See [Ingesting Corpora](08_ingesting_corpora.md) for details.

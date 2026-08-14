@@ -95,6 +95,9 @@ TinyToT solves the following exactly — no retrieval, no generation:
 | Percentages | `$120 discounted 25% then taxed 8%` → `$97.20` |
 | Unit conversion | `72°F to Celsius`, `5 miles to km` |
 | Multi-leg distance | `60mph for 2.5h then 80mph for 1.5h` → `270` |
+| Relative-motion meeting | `Two trains 240km apart, 60km/h & 80km/h, start 8am` → `9:42 AM` |
+| Relative-motion catch-up | `Car 60km/h leaves 9am; truck 90km/h leaves 10am` → `1:00 PM` |
+| Single-leg rate | `Boat 120km at 30km/h` → `4h` |
 | Fractions of total | `12 slices, Carol ate the rest` → `5/12` |
 | Structured data | `Alice=85, Bob=92, Carol=78. Highest?` → `Bob (92)` |
 | Transitive logic | `John taller than Mary, Mary taller than Bob` |
@@ -104,6 +107,16 @@ TinyToT solves the following exactly — no retrieval, no generation:
 | Letter counting | `How many r's in strawberry?` → `3` |
 
 All via Python `ast` — never calls `eval()` or `exec()`.
+
+**Precision-first word problems.** Broad keyword matchers misfire ~95% of the
+time on genuine prose (measured on GSM8K), so real-world prose word problems
+are only solved when all structural anchors are present. `solvePreciseWordProblem`
+handles the relative-motion class (meeting, catch-up, single-leg rate) and
+returns `None` otherwise — the guard stays honest instead of guessing.
+
+**Rate word problems route to math.** Prompts with rate keywords (`mph`, `kph`,
+`km/h`, `per hour`, …) are classified into the `math` domain and routed to the
+math reasoning category when one exists.
 
 ---
 
@@ -205,7 +218,7 @@ ctranslate2 via `pip install tinytot[translation]`), `DataTool`, `FileTool`,
 ## Benchmarking
 
 ```bash
-make bench    # all 16 benchmarks with anti-cheat
+make bench    # all 17 benchmarks with anti-cheat
 ```
 
 | Benchmark | Baseline |
@@ -248,6 +261,46 @@ The pre-commit hook rejects commits that drop below baseline.
 | New contradiction pair | `tinytot/_data/generate/contradiction_pairs.yaml` | No |
 | New gendered name | `tinytot/_data/generate/names_gender.yaml` | No |
 | New use-case handler | `tinytot/_data/generate/use_cases.yaml` + handler fn | Minimal |
+
+---
+
+## Trace ingestion & reasoning parity
+
+TinyToT can ingest real agent traces — from **opencode** CLI sessions and
+**OpenTraces** (Hugging Face) — and compare its own reasoning against the models
+that produced them.
+
+```bash
+# Export a session to JSON (opencode CLI must be on PATH)
+opencode export <session-id> -o data/.sources/opencode/
+
+# Ingest the exports into reasoning-chain categories
+tinytot-ingest opencode
+
+# Ingest OpenTraces instead, or everything:
+tinytot-ingest opentraces
+tinytot-ingest all
+```
+
+Each session's task is classified by domain and appended to
+`data/categories/opencode_augment_*.md` (and `opentraces_augment_*.md`), with
+provider/model/token parity metadata preserved in chain comments. These augment
+chains are excluded from the routing index but are available for reasoning and
+parity analysis via `loadOpenCodeChains` / `loadAugmentChains`.
+
+**Reasoning parity checks:**
+
+```bash
+tinytot-parity fidelity     # extraction fidelity vs. original trace
+tinytot-parity cross        # cross-provider reasoning similarity
+tinytot-parity routing      # TinyToT routing vs. expected category
+tinytot-parity all          # all three checks
+tinytot-parity all --json   # machine-readable JSON output
+```
+
+All checks default to `data/.sources/opencode/` for exports; override with a
+positional dir. Routing parity is measured per export — currently **12/12
+(100%)** on the 3-task × 4-model corpus.
 
 ---
 

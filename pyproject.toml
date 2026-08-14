@@ -59,6 +59,7 @@ tinytot-bench   = "tinytot.benchmark:main"
 tinytot-api-docs = "tinytot.cli.generate_api_docs:main"
 tinytot-check-data = "tinytot.tests.check_data_quality:main"
 tinytot-clone      = "tinytot.clone:_cli"
+tinytot-parity     = "tinytot.parity:main"
 
 [project.urls]
 Homepage = "https://github.com/guilt/tinytot"

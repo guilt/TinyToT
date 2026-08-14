@@ -74,6 +74,23 @@ buildChainIndex.cache_clear()
 "
 ```
 
+### Routing for rate word problems
+
+Prompts with rate keywords (`mph`, `kph`, `km/h`, `per hour`, …) are classified
+into the `math` domain and routed to the `math` category when one exists —
+this keeps e.g. "Two trains 240km apart... when do they meet?" on the math chain
+instead of leaking to the `agent` category. The precision-first solver in
+[Compute Engine](02_compute_engine.md) then supplies the exact answer.
+
+### Auto-ingested augment chains
+
+Traces ingested from opencode sessions and OpenTraces are stored as
+`opencode_augment_<category>.md` / `opentraces_augment_<category>.md` files.
+These follow the same `## Chain N:` / `Thought N:` format and are loaded via
+`loadOpenCodeChains` / `loadAugmentChains`. They are **excluded from the routing
+index** (`buildChainIndex` skips `opencode_*` / `opentraces_augment_*` files) so
+they never change routing, but remain available for reasoning.
+
 ## Knowledge grounding
 
 When the knowledge base has a relevant passage (score ≥ 0.20), the reasoning trace

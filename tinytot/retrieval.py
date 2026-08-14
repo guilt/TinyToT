@@ -55,6 +55,13 @@ __all__ = [
 
 DEFAULT_CATEGORY = "tool_calling"
 
+# Relative-motion rate problems ("traveling at 60 mph ... 150 miles ... meet")
+# are routed to the math category so they do not scatter onto unrelated chains.
+_RATE_WORD_PROBLEM_RE = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:mph|kph|km/h|km\s*per\s*hour|miles?\s*per\s*hour|kilometers?\s*per\s*hour)\b",
+    re.IGNORECASE,
+)
+
 # ---------------------------------------------------------------------------
 # Retrieval thresholds -- all cosine-similarity cutoffs live here.
 # Cosine similarity ranges 0.0 (no overlap) to 1.0 (identical vocabulary).
@@ -150,18 +157,18 @@ def buildChainIndex(
     in that category, repeated _KEYWORD_REPEAT times so that query tokens
     matching a category keyword provide a meaningful routing boost.
 
-    Files whose name starts with ``opentraces_`` are excluded from the
-    routing index so that auto-ingested trace data does not distort
-    category routing.  Those chains are available for reasoning via the
-    separate ``loadAugmentChains`` function.
+    Files whose name starts with ``opentraces_`` or ``opencode_`` are
+    excluded from the routing index so that auto-ingested trace data does
+    not distort category routing.  Those chains are available for reasoning
+    via the separate ``loadAugmentChains`` / ``loadOpenCodeChains`` functions.
     """
     categories = getCategories(categoryDir)
     entries: List[IndexEntry] = []
     raw_texts: List[str] = []
 
     for category, filename in categories.items():
-        # Skip OpenTraces files — they are for reasoning only, not routing
-        if filename.startswith("opentraces_"):
+        # Skip auto-ingested trace files — they are for reasoning only, not routing
+        if filename.startswith(("opentraces_", "opencode_")):
             continue
         chains = loadReasoningChains(filename, categoryDir)
         keywords = _loadCategoryKeywords(filename, categoryDir)
@@ -196,7 +203,7 @@ def buildChainMeta(
     total_tokens = 0
 
     for category, filename in categories.items():
-        if filename.startswith("opentraces_"):
+        if filename.startswith(("opentraces_", "opencode_")):
             continue
         chains = loadReasoningChains(filename, categoryDir)
         keywords = _loadCategoryKeywords(filename, categoryDir)
@@ -634,10 +641,17 @@ def categorizePrompt(prompt: str, categoryDir: Path = CATEGORY_DIR) -> str:
     scoring is applied to knowledge passage retrieval (findKnowledgeAnswer)
     where it improves precision, but routing accuracy is already high with
     single-head TF-IDF + keyword repeat boosting and multi-head adds noise.
+
+    Relative-motion rate problems (speeds in mph/km/h) are routed to the
+    ``math`` category when one exists: TF-IDF otherwise scatters them onto
+    unrelated chains (e.g. ``agent``), producing nonsense reasoning traces.
     """
     entries, idf, tfVecs = buildChainIndex(categoryDir)
     if not entries:
         return DEFAULT_CATEGORY
+
+    if _RATE_WORD_PROBLEM_RE.search(prompt) and any(c == "math" for c, _, _ in entries):
+        return "math"
 
     qvec = queryVector(prompt, idf)
     if not qvec:

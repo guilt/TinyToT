@@ -75,6 +75,13 @@ coreference resolution, contradiction detection, structured data comparisons,
 fraction-of-total, chained percentage calculations, and multi-step word problems.
 Never uses token prediction. Results are always exact.
 
+Word problems are **precision-first**: prose word problems are only solved when
+all structural anchors are present (`solvePreciseWordProblem`), because broad
+keyword matchers misfire ~95% of the time on genuine prose (measured on GSM8K).
+The relative-motion class — meeting, catch-up, single-leg rate — returns an exact
+time when complete, and `None` otherwise. Rate word problems (`mph`, `km/h`, …)
+are classified into the `math` domain and routed to the math category.
+
 Content (names, comparatives, contradiction pairs) loads from
 `tinytot/_data/generate/*.yaml` — no knowledge hardcoded in Python.
 
@@ -127,15 +134,38 @@ wrapper.
 
 ## Ingestion pipeline
 
-`IngestSource` is an ABC with three concrete implementations:
+`IngestSource` is an ABC with concrete implementations:
 
 - `GSM8KSource` — ingests GSM8K math problems
 - `PrincetonToTSource` — ingests Princeton Tree of Thoughts reasoning data
+- `OpenCodeSource` — ingests `opencode export` session traces into
+  `opencode_augment_*.md` chains, preserving provider/model/token parity metadata
+- `OpenTracesSource` — downloads OpenTraces (Hugging Face) and classifies each
+  trace into an existing category
 - `ArgostranslateSource` — installs 132 translation pack pairs across 12 languages
+
+Auto-ingested trace chains (`opencode_augment_*`, `opentraces_augment_*`) are
+excluded from the routing index (`buildChainIndex` skips `opencode_*` /
+`opentraces_augment_*` files) so they never pollute routing; they are loaded for
+reasoning via `loadOpenCodeChains` / `loadAugmentChains`.
 
 24-language support is provided via `lang.py`. Document ingestion libraries
 now include `openpyxl` (Excel), `python-pptx` (PowerPoint), `lxml` (XML),
 `ijson` (JSON streaming), `tabulate` (table rendering).
+
+## Reasoning parity tooling
+
+`tinytot/parity.py` (`tinytot-parity` CLI) compares TinyToT's behaviour against
+real agent traces from opencode sessions:
+
+| Check | What it measures |
+|---|---|
+| `fidelity` | Extraction fidelity of reasoning vs. the original export |
+| `cross` | Cross-provider reasoning similarity (jaccard) |
+| `routing` | Routing parity: TinyToT's routed category vs. expected per export |
+
+Routing parity is currently **12/12 (100%)** on the 3-task × 4-model corpus and
+is how the precision-first word-problem routing was validated end-to-end.
 
 ---
 

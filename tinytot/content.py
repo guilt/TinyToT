@@ -25,6 +25,7 @@ __all__ = [
     "getCategories",
     "loadReasoningChains",
     "loadAugmentChains",
+    "loadOpenCodeChains",
     "loadToolPatterns",
     "loadKnowledgePassages",
     "loadHermesJournal",
@@ -217,6 +218,20 @@ def loadAugmentChains(categoryName: str, categoryDir: Path = CATEGORY_DIR) -> Li
     Returns empty list when no augment file exists.
     """
     return loadReasoningChains(f"opentraces_augment_{categoryName}.md", categoryDir)
+
+
+@lru_cache(maxsize=None)
+def loadOpenCodeChains(categoryName: str, categoryDir: Path = CATEGORY_DIR) -> List[Chain]:
+    """Load OpenCode augmentation chains for a given category.
+
+    Like ``loadAugmentChains``, these are auto-ingested opencode agent traces
+    stored in ``opencode_augment_<categoryName>.md`` files.  They are excluded
+    from the routing index (``buildChainIndex`` skips ``opencode_*`` files) but
+    are available for reasoning and parity analysis via this function.
+
+    Returns empty list when no opencode augment file exists.
+    """
+    return loadReasoningChains(f"opencode_augment_{categoryName}.md", categoryDir)
 
 
 # ---------------------------------------------------------------------------

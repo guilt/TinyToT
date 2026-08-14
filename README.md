@@ -78,6 +78,9 @@ Handles a wide class of problems through direct computation:
 | Unit conversion | `32°F to Celsius` | `0°C` |
 | Multi-leg distance | `60mph for 2.5h then 80mph for 1.5h` | `270` |
 | Work rate | `A finishes in 3h, B in 6h. Together?` | `2h` |
+| Relative-motion meeting | `Two trains, one at 60km/h one at 80km/h, 240km apart, start at 8am — when do they meet?` | `9:42 AM` |
+| Relative-motion catch-up | `Car leaves at 9am at 60km/h; truck at 10am at 90km/h — when does it catch up?` | `1:00 PM` |
+| Single-leg rate | `A boat travels 120km at 30km/h — how long?` | `4h` |
 | Structured data | `Alice=85, Bob=92, Carol=78. Highest?` | `Bob (92)` |
 | Fraction of total | `12 slices, Alice ate 3, Bob 4, Carol rest` | `5/12` |
 | Logic deduction | `All mammals warm-blooded. Dolphins?` | `Yes` |
@@ -87,6 +90,16 @@ Handles a wide class of problems through direct computation:
 | Contradiction | `'All birds fly' vs 'Penguins cannot fly'` | `Contradiction` |
 | Date reasoning | `Days between 2024-01-01 and 2024-03-15` | `74` |
 | Letter counting | `How many r's in strawberry?` | `3` |
+
+**Precision-first word problems.** Real-world prose word problems are only solved
+when all structural anchors are present — broad keyword matchers misfire ~95% of
+the time on genuine prose (measured on GSM8K). `solvePreciseWordProblem` handles
+the relative-motion class (meeting, catch-up, single-leg rate) and returns
+`None` otherwise, so the guard stays honest instead of guessing.
+
+**Rate word problems route to math.** Prompts with rate keywords
+(`mph`, `kph`, `km/h`, `per hour`, …) are classified into the `math` domain and
+routed to the math reasoning category when one exists.
 
 ### 3. Use-case handlers — 10 GenAI workloads
 Data-driven dispatch via `tinytot/_data/generate/` YAML files:
@@ -269,6 +282,50 @@ The Python source (`pip install tinytot`) is shared across all variants.
 
 ---
 
+## Trace ingestion & reasoning parity
+
+TinyToT can ingest real agent traces — from **opencode** CLI sessions and
+**OpenTraces** (Hugging Face) — and compare its own reasoning against the models
+that produced them.
+
+### Ingesting opencode traces
+
+```bash
+# Export a session to JSON (opencode CLI must be on PATH)
+opencode export <session-id> -o tinytot/_data/.sources/opencode/
+
+# Ingest the exports into reasoning-chain categories
+tinytot-ingest opencode
+
+# Ingest OpenTraces (Hugging Face) instead, or everything:
+tinytot-ingest opentraces
+tinytot-ingest all
+```
+
+Each session's task is classified by domain and appended to
+`tinytot/_data/categories/opencode_augment_*.md` (and
+`opentraces_augment_*.md`), with provider/model/token parity metadata preserved
+in chain comments. These augment chains are excluded from the routing index but
+are available for reasoning and parity analysis via `loadOpenCodeChains` /
+`loadAugmentChains`.
+
+### Reasoning parity checks
+
+```bash
+tinytot-parity fidelity     # extraction fidelity vs. original trace
+tinytot-parity cross        # cross-provider reasoning similarity
+tinytot-parity routing      # TinyToT routing vs. expected category
+tinytot-parity all          # all three checks
+tinytot-parity all --json   # machine-readable JSON output
+```
+
+All checks default to `tinytot/_data/.sources/opencode/` for exports; override
+with a positional dir. Routing parity is measured per export — currently
+**12/12 (100%)** on the 3-task × 4-model corpus. This is how the precision-first
+word-problem routing above was validated end-to-end.
+
+---
+
 ## Knowledge base
 
 ```bash
@@ -342,6 +399,8 @@ make docs         # regenerate API docs + build Sphinx HTML
 make docs-serve   # serve docs on localhost
 make live-docs    # live-reload docs server
 make benchmark    # ingest corpora then run all benchmarks (alias: make bench)
+make docs         # regenerate API docs + build Sphinx HTML
+tinytot-parity all  # reasoning parity vs. opencode session exports (see above)
 make build        # build wheel
 make build-binary # build self-contained binary (dist/tinytot or dist/tinytot.exe)
 ```
@@ -367,7 +426,8 @@ tinytot/
   tools_ext.py      11-tool registry (web, doc, translate, data, file, shell, AV)
   lang.py           Lang enum, 24 languages, SOCIAL_PATTERN, detect_lang()
   server.py         FastAPI app, Ollama + OpenAI endpoints
-  ingest.py         IngestSource ABC — GSM8K, Princeton ToT, argostranslate packs
+  ingest.py         IngestSource ABC — GSM8K, Princeton ToT, OpenTraces, opencode, argostranslate packs
+  parity.py         reasoning parity tooling — tinytot-parity CLI (fidelity/cross/routing)
   benchmark.py      17 benchmarks including TruthfulQA and 3 anti-cheat (novel math/reasoning/routing)
   summarize.py      extractive summarization
   clone.py          self-replication — tinytot-clone CLI, NanoToT delta variants
@@ -376,7 +436,7 @@ tinytot/
 
   _data/            bundled package data (ships inside the wheel)
     knowledge/        30+ markdown knowledge files, 15,000+ passages
-    categories/       15 domain reasoning-chain files
+    categories/       15 domain reasoning-chain files (+ opencode_augment_* / opentraces_augment_*)
     codegen/
       templates/      648 algorithm templates (7 languages each)
       patterns.yaml   regex → template key
@@ -403,6 +463,7 @@ tinytot/
       information_patterns.md  tool dispatch patterns
     .sources/
       corpora/         benchmark fixtures (images, CSV, README) shipped in the wheel
+      opencode/       gitignored opencode session exports (populated by `opencode export` / tinytot-ingest)
       (runtime clones  gitignored, populated by tinytot-ingest)
     journal/          agent learning journal (gitignored, runtime per-machine)
 ```

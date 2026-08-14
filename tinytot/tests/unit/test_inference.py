@@ -142,6 +142,20 @@ class TestGenerateReasoningResponse:
         assert "Paris" in result
         buildKnowledgeIndex.cache_clear()
 
+    def test_word_problem_meeting_solved_by_compute(self, category_dir):
+        buildKnowledgeIndex.cache_clear()
+        prompt = (
+            "A train leaves Station A at 2:00 PM traveling at 60 mph toward Station B, "
+            "which is 150 miles away. Another train leaves Station B at 2:30 PM traveling "
+            "at 50 mph toward Station A. At what clock time do the two trains meet? "
+            "Do not use tools and do not edit any files."
+        )
+        result = generateReasoningResponse(prompt, category_dir)
+        # The precise compute path must answer, NOT a reasoning chain about files.
+        assert "3:35 PM" in result
+        assert "Explore Local Files" not in result
+        buildKnowledgeIndex.cache_clear()
+
 
 # ---------------------------------------------------------------------------
 # detectResponseMode

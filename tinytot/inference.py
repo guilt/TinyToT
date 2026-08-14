@@ -13,7 +13,7 @@ from typing import Optional
 
 from .agent import agentResponse, detectAgentNeeds
 from .codegen import generateCode, generateProject, isCodeRequest, isProjectRequest
-from .compute import detectComputePrompt, solveCompute
+from .compute import detectComputePrompt, solveCompute, solvePreciseWordProblem
 from .content import (
     CATEGORY_DIR,
     KNOWLEDGE_DIR,
@@ -870,9 +870,12 @@ def generateReasoningResponse(
         )
 
     # Compute: arithmetic before any knowledge lookup.
-    # Guard: skip for word problems — solveCompute only handles simple expressions.
-    # A word problem is: prose with multiple numbers embedded in sentences,
-    # OR a single-sentence narrative (person + verb + numbers + question).
+    # Guard: word problems are NOT sent through the full solveCompute pipeline —
+    # its permissive extractors misfire on ~95% of real prose word problems.
+    # Instead a precision gate (solvePreciseWordProblem) handles only classes
+    # whose structure fully determines the math (relative motion: meeting,
+    # catch-up, single-leg rate). Everything else falls through to the KB /
+    # reasoning pipeline. See compute.py for the rationale.
     _wordCount = len(prompt.split())
     _sentenceCount = len([s for s in prompt.split(".") if s.strip()])
     isWordProblem = (_sentenceCount >= _WORD_PROBLEM_MIN_SENTENCES and _wordCount >= _WORD_PROBLEM_MIN_WORDS) or (
@@ -885,6 +888,11 @@ def generateReasoningResponse(
             hasOperator = bool(re.search(r"[\+\-\*\/\^]|\b(?:plus|minus|times|divided)\b", prompt, re.IGNORECASE))
             if len(result_str) > 1 or hasOperator:
                 return computed
+
+    # Precision gate: structurally-anchored word-problem classes only.
+    computed = solvePreciseWordProblem(prompt)
+    if computed is not None:
+        return computed
 
     # Social: greetings, farewells, pleasantries — bypass knowledge lookup
     # and route directly to the smalltalk category.

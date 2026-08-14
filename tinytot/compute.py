@@ -18,7 +18,7 @@ from tinytot.content import DATA_DIR as _TINYTOT_DATA_DIR
 
 _GENERATE_DATA = _TINYTOT_DATA_DIR / "generate"
 
-__all__ = ["detectComputePrompt", "solveCompute"]
+__all__ = ["detectComputePrompt", "solveCompute", "solvePreciseWordProblem"]
 
 # ---------------------------------------------------------------------------
 # Word-to-number mapping
@@ -1283,6 +1283,11 @@ def solveCompute(prompt: str) -> Optional[str]:
     if answer is not None:
         return answer
 
+    # 6b. Meeting / relative-motion word problems (two trains, staggered starts)
+    answer = solvePreciseWordProblem(prompt)
+    if answer is not None:
+        return answer
+
     # 7. Structured data (key=value pairs — max/min/avg/sum)
     answer = _solveStructuredData(prompt)
     if answer is not None:
@@ -1773,4 +1778,169 @@ def _solveMultiStepWord(prompt: str) -> Optional[str]:
         if steps:
             return f"${price:.2f} ({'; '.join(steps)})"
 
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Relative-motion word problems (meeting, catch-up, single-leg rate)
+#
+# Precision-first: each sub-class requires COMPLETE structural anchors (clock
+# times, speeds, distance) before it fires, so these never misfire on partial
+# numeric prose the way the broad word-problem solvers do.
+# ---------------------------------------------------------------------------
+
+_RM_CLOCK_RE = re.compile(r"(\d{1,2})(?::(\d{2}))?\s*(AM|PM)|(noon|midnight)", re.IGNORECASE)
+_RM_RATE_RE = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:mph|kph|km/h|km\s*per\s*hour|miles?\s*per\s*hour|kilometers?\s*per\s*hour)\b",
+    re.IGNORECASE,
+)
+_RM_DIST_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(?:miles|kilometers|kilometres|km|mi)\b", re.IGNORECASE)
+_RM_DURATION_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?)\b", re.IGNORECASE)
+_RM_MEET_Q_RE = re.compile(r"\bmeet\b|\bwhen\s+(?:do|will|would)\b|\bat\s+what\s+(?:clock\s+)?time\b", re.IGNORECASE)
+_RM_CATCH_Q_RE = re.compile(r"\bcatch(?:es|es\s+up(?:\s+with)?| up(?:\s+with)?| up\s+to)\b", re.IGNORECASE)
+_RM_APPROACH_RE = re.compile(r"\b(?:toward|towards|approach|opposite\s+directions)\b", re.IGNORECASE)
+_RM_DIST_Q_RE = re.compile(
+    r"\b(?:how\s+far|distance|how\s+many\s+(?:miles|kilometers)|how\s+long|how\s+many\s+hours?|how\s+much\s+time)\b",
+    re.IGNORECASE,
+)
+
+
+def _rmClockToMinutes(match) -> int:
+    if match.group(4):
+        return 720 if match.group(4).lower() == "noon" else 0
+    hour = int(match.group(1))
+    minute = int(match.group(2) or 0)
+    meridiem = match.group(3).upper()
+    if meridiem == "PM" and hour != 12:
+        hour += 12
+    if meridiem == "AM" and hour == 12:
+        hour = 0
+    return hour * 60 + minute
+
+
+def _rmFormatClock(total_minutes: float) -> str:
+    total = int(round(total_minutes))
+    hour = (total // 60) % 24
+    minute = total % 60
+    meridiem = "PM" if hour >= 12 else "AM"
+    hour12 = hour % 12 or 12
+    return f"{hour12}:{minute:02d} {meridiem}"
+
+
+def _rmRateValues(prompt: str) -> list[float]:
+    rates = _RM_RATE_RE.findall(prompt)
+    return [float(r if isinstance(r, str) else r[0]) for r in rates]
+
+
+def _solveMeeting(prompt: str) -> Optional[str]:
+    """Two travellers approaching each other (staggered starts allowed)."""
+    if not _RM_MEET_Q_RE.search(prompt):
+        return None
+    if not _RM_APPROACH_RE.search(prompt):
+        return None
+    clocks = list(_RM_CLOCK_RE.finditer(prompt))
+    rates = _rmRateValues(prompt)
+    dists = _RM_DIST_RE.findall(prompt)
+    if not clocks or len(rates) < 2 or not dists:
+        return None
+
+    t1 = _rmClockToMinutes(clocks[0])
+    t2 = _rmClockToMinutes(clocks[1]) if len(clocks) > 1 else t1  # simultaneous start
+    v1, v2 = rates[0], rates[1]
+    distance = float(dists[0] if isinstance(dists[0], str) else dists[0][0])
+
+    t_first, t_later = min(t1, t2), max(t1, t2)
+    v_first = v1 if t1 <= t2 else v2
+    v_later = v2 if t1 <= t2 else v1
+
+    lead_hours = (t_later - t_first) / 60.0
+    remaining = distance - v_first * lead_hours
+    combined = v_first + v_later
+    if remaining <= 0 or combined <= 0:
+        return None
+
+    meet_minutes = t_later + (remaining / combined) * 60.0
+    return (
+        f"The travellers meet at {_rmFormatClock(meet_minutes)}. The later departure "
+        f"travels first for {lead_hours:g} hours (covering {v_first * lead_hours:g} miles), "
+        f"leaving {remaining:g} miles to be closed at a combined speed of "
+        f"{combined:g} miles per hour, {remaining / combined:.2f} hours later."
+    )
+
+
+def _solveCatchUp(prompt: str) -> Optional[str]:
+    """A faster later traveller catches a slower earlier one on the same route."""
+    if not _RM_CATCH_Q_RE.search(prompt):
+        return None
+    if _RM_APPROACH_RE.search(prompt):
+        return None
+    clocks = list(_RM_CLOCK_RE.finditer(prompt))
+    rates = _rmRateValues(prompt)
+    if len(clocks) < 2 or len(rates) < 2:
+        return None
+    if _RM_DIST_RE.search(prompt):  # a distance makes the class ambiguous — refuse
+        return None
+
+    t1 = _rmClockToMinutes(clocks[0])
+    t2 = _rmClockToMinutes(clocks[1])
+    v1, v2 = rates[0], rates[1]
+
+    t_first, t_later = min(t1, t2), max(t1, t2)
+    v_first = v1 if t1 <= t2 else v2
+    v_later = v2 if t1 <= t2 else v1
+    if v_later <= v_first:
+        return None
+
+    lead_hours = (t_later - t_first) / 60.0
+    gap = v_first * lead_hours
+    closing = v_later - v_first
+    catch_minutes = t_later + (gap / closing) * 60.0
+    return (
+        f"The faster traveller catches up at {_rmFormatClock(catch_minutes)}. The earlier "
+        f"traveller leads by {gap:g} miles ({v_first:g} mph for {lead_hours:g} hours); the "
+        f"gap closes at {closing:g} mph, {gap / closing:.2f} hours after the later departure."
+    )
+
+
+def _solveSingleLeg(prompt: str) -> Optional[str]:
+    """One rate with a duration or distance: distance = rate x time."""
+    rates = _rmRateValues(prompt)
+    if len(rates) != 1:
+        return None
+    if not _RM_DIST_Q_RE.search(prompt):
+        return None
+    speed = rates[0]
+    if speed <= 0:
+        return None
+
+    durations = _RM_DURATION_RE.findall(prompt)
+    dists = _RM_DIST_RE.findall(prompt)
+    if durations and not dists and len(durations) == 1:
+        num, unit = durations[0]
+        hours = float(num) if unit.startswith(("h", "hour", "hr")) else float(num) / 60.0
+        unit_word = (
+            "kilometers"
+            if re.search(r"\b(?:kph|km/h|km\s*per\s*hour|kilometers?\s*per\s*hour)\b", prompt, re.I)
+            else "miles"
+        )
+        return f"{speed * hours:g} {unit_word}"
+    if dists and not durations and len(dists) == 1:
+        dist = float(dists[0] if isinstance(dists[0], str) else dists[0][0])
+        return f"{dist / speed:.2f} hours"
+    return None
+
+
+def solvePreciseWordProblem(prompt: str) -> Optional[str]:
+    """Solve only structurally-anchored word-problem classes.
+
+    Precision-first: each class requires complete anchors (clock times, speeds,
+    distances) so it cannot misfire on partial numeric prose.  Broad prose word
+    problems are deliberately NOT attempted here — the permissive solvers are
+    wrong on ~95% of real prose, so those fall through to the knowledge base /
+    reasoning pipeline instead.
+    """
+    for solver in (_solveMeeting, _solveCatchUp, _solveSingleLeg):
+        answer = solver(prompt)
+        if answer is not None:
+            return answer
     return None

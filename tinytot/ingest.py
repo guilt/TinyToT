@@ -367,6 +367,7 @@ _DOMAIN_TO_CATEGORY: dict[str, str] = {
     "web": "programming",
     "planning": "creative_writing",
     "migration": "programming",
+    "math": "math",
 }
 
 # OpenTraces datasets config: (hf_repo, label)
@@ -424,39 +425,8 @@ def _downloadOpenTracesFile(repo: str, filename: str, dest: Path) -> int:
         return 0
 
 
-def _traceToChain(trace: dict, chain_num: int, max_thoughts: int = 10) -> str | None:
-    """Convert an OpenTraces TraceRecord into a TinyToT chain block.
-
-    Returns the markdown block string, or None if the trace has no usable
-    reasoning content.
-    """
-    task_desc = trace.get("task", {}).get("description", "") or ""
-    steps = trace.get("steps", [])
-    outcome = trace.get("outcome", {}) or {}
-
-    if not steps:
-        return None
-
-    # Extract reasoning steps from agent/assistant turns
-    thoughts: list[str] = []
-    for step in steps:
-        if step.get("role") in ("agent", "assistant"):
-            # Prefer reasoning_content; fall back to content
-            text = step.get("reasoning_content") or step.get("content", "") or ""
-            text = text.strip()
-            if text:
-                first_line = text.split("\n")[0].strip()[:200]
-                if len(first_line) > 20:
-                    thoughts.append(first_line)
-        if len(thoughts) >= max_thoughts:
-            break
-
-    if not thoughts:
-        return None
-
-    # Build handles from task description keywords
-    long_words = {w.lower() for w in re.findall(r"\b\w{4,}\b", task_desc)}
-    stop_words = {
+_HANDLE_STOP_WORDS = frozenset(
+    {
         "this",
         "that",
         "with",
@@ -489,8 +459,48 @@ def _traceToChain(trace: dict, chain_num: int, max_thoughts: int = 10) -> str | 
         "want",
         "tell",
     }
-    handles = sorted(long_words - stop_words)
-    handle_str = ", ".join(handles[:8]) if handles else task_desc[:60]
+)
+
+
+def _taskHandles(task_desc: str, limit: int = 8) -> str:
+    """Build a comma-separated handle keyword string from a task description."""
+    long_words = {w.lower() for w in re.findall(r"\b\w{4,}\b", task_desc)}
+    handles = sorted(long_words - _HANDLE_STOP_WORDS)
+    return ", ".join(handles[:limit]) if handles else task_desc[:60]
+
+
+def _traceToChain(trace: dict, chain_num: int, max_thoughts: int = 10) -> str | None:
+    """Convert an OpenTraces TraceRecord into a TinyToT chain block.
+
+    Returns the markdown block string, or None if the trace has no usable
+    reasoning content.
+    """
+    task_desc = trace.get("task", {}).get("description", "") or ""
+    steps = trace.get("steps", [])
+    outcome = trace.get("outcome", {}) or {}
+
+    if not steps:
+        return None
+
+    # Extract reasoning steps from agent/assistant turns
+    thoughts: list[str] = []
+    for step in steps:
+        if step.get("role") in ("agent", "assistant"):
+            # Prefer reasoning_content; fall back to content
+            text = step.get("reasoning_content") or step.get("content", "") or ""
+            text = text.strip()
+            if text:
+                first_line = text.split("\n")[0].strip()[:200]
+                if len(first_line) > 20:
+                    thoughts.append(first_line)
+        if len(thoughts) >= max_thoughts:
+            break
+
+    if not thoughts:
+        return None
+
+    # Build handles from task description keywords
+    handle_str = _taskHandles(task_desc)
 
     # Determine outcome as conclusion
     success = outcome.get("success")
@@ -516,6 +526,34 @@ def _traceToChain(trace: dict, chain_num: int, max_thoughts: int = 10) -> str | 
     return "\n".join(lines)
 
 
+_DOMAIN_WORD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _matchKeywords(text: str, keywords: tuple[str, ...]) -> bool:
+    """Match any keyword against text using word boundaries where possible.
+
+    Keywords ending in a space (e.g. "go ", "c ") or that are explicit stems
+    (e.g. "migrat") fall back to literal substring matching.  Everything else
+    matches on word boundaries so that e.g. "graph" does not match
+    "paragraph", "fix" does not match "prefix", and "plan" does not match
+    "explain".
+    """
+    for kw in keywords:
+        if kw.endswith(" ") or kw.endswith("migrat"):
+            if kw in text:
+                return True
+            continue
+        pattern = _DOMAIN_WORD_RE_CACHE.get(kw)
+        if pattern is None:
+            pat = r"\b" + re.escape(kw)
+            if kw[-1].isalnum() or kw[-1] == "_":
+                pat += r"\b"
+            pattern = _DOMAIN_WORD_RE_CACHE[kw] = re.compile(pat)
+        if pattern.search(text):
+            return True
+    return False
+
+
 def _classifyTaskDomain(task_desc: str) -> str:
     """Map a task description to a domain sub-tag for finer-grained categorization.
 
@@ -523,34 +561,51 @@ def _classifyTaskDomain(task_desc: str) -> str:
     """
     lower = task_desc.lower()
     # Language / tech-specific keywords
-    if any(w in lower for w in ("python", "pandas", "numpy", "flask", "django", "pytest")):
+    if _matchKeywords(lower, ("python", "pandas", "numpy", "flask", "django", "pytest")):
         return "python"
-    if any(w in lower for w in ("java", "spring", "maven", "kotlin")):
+    if _matchKeywords(lower, ("java", "spring", "maven", "kotlin")):
         return "java"
-    if any(w in lower for w in ("javascript", "typescript", "node", "react", "npm", "js", "ts")):
+    if _matchKeywords(lower, ("javascript", "typescript", "node", "react", "npm", "js", "ts")):
         return "javascript"
-    if any(w in lower for w in ("go ", "golang", "goroutine")):
+    if _matchKeywords(lower, ("go ", "golang", "goroutine")):
         return "golang"
-    if any(w in lower for w in ("rust", "cargo")):
+    if _matchKeywords(lower, ("rust", "cargo")):
         return "rust"
-    if any(w in lower for w in ("c++", "c ", "cpp", "pointer", "malloc")):
+    if _matchKeywords(lower, ("c++", "c ", "cpp", "pointer", "malloc")):
         return "cpp"
-    if any(w in lower for w in ("sql", "database", "postgresql", "mysql", "query", "index")):
+    if _matchKeywords(lower, ("sql", "database", "postgresql", "mysql", "query", "index")):
         return "database"
-    if any(w in lower for w in ("aws", "ec2", "s3", "lambda", "cloud")):
+    if _matchKeywords(lower, ("aws", "ec2", "s3", "lambda", "cloud")):
         return "aws"
-    if any(w in lower for w in ("docker", "kubernetes", "k8s", "container", "deploy")):
+    if _matchKeywords(lower, ("docker", "kubernetes", "k8s", "container", "deploy")):
         return "devops"
-    if any(w in lower for w in ("algorithm", "data structure", "sort", "search", "tree", "graph")):
+    if _matchKeywords(lower, ("algorithm", "data structure", "sort", "search", "tree", "graph")):
         return "algorithms"
-    if any(w in lower for w in ("test", "debug", "bug", "issue", "error", "fix", "segfault")):
+    if _matchKeywords(lower, ("test", "debug", "bug", "issue", "error", "fix", "segfault")):
         return "debugging"
-    if any(w in lower for w in ("workshop", "plan", "talk", "presentation", "guide", "tutorial")):
+    if _matchKeywords(lower, ("workshop", "plan", "talk", "presentation", "guide", "tutorial")):
         return "planning"
-    if any(w in lower for w in ("migrat", "upgrade", "convert", "port", "rewrite")):
+    if _matchKeywords(lower, ("migrat", "upgrade", "convert", "port", "rewrite")):
         return "migration"
-    if any(w in lower for w in ("html", "css", "web", "browser", "extension", "ui")):
+    if _matchKeywords(lower, ("html", "css", "web", "browser", "extension", "ui")):
         return "web"
+    # Rate / measurement word problems (speeds, distances, durations) — anchors
+    # like "mph" and "per hour" make the problem tractable for the compute engine.
+    if _matchKeywords(
+        lower,
+        (
+            "mph",
+            "kph",
+            "km/h",
+            "miles per hour",
+            "kilometers per hour",
+            "km per hour",
+            "per hour",
+            "average speed",
+            "distance traveled",
+        ),
+    ):
+        return "math"
     return "general"
 
 
@@ -800,6 +855,342 @@ class OpenTracesSource(IngestSource):
         buildChainMeta.cache_clear()
 
         return results
+
+
+# ---------------------------------------------------------------------------
+# OpenCode — exported opencode session traces
+# ---------------------------------------------------------------------------
+
+# Canonical provider → TinyToT category mapping for routing parity checks.
+# Mirrors _DOMAIN_TO_CATEGORY but keyed by provider family.
+_PROVIDER_TO_CATEGORY: dict[str, str] = {
+    "anthropic": "general",
+    "openai": "general",
+    "google": "general",
+    "opencode": "general",
+}
+
+
+def _iterOpenCodeExports(export_dir: Path) -> Iterator[dict]:
+    """Yield parsed session exports from *.json files in a directory."""
+    if not export_dir.exists():
+        return
+    for f in sorted(export_dir.glob("*.json")):
+        try:
+            yield json.loads(f.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Cannot parse opencode export %s: %s", f, exc)
+
+
+def _opencodeSessionInfo(export: dict) -> dict:
+    return export.get("info", {}) or {}
+
+
+def _opencodeTask(export: dict) -> str:
+    """Return the first user text message as the trace's task description."""
+    for m in export.get("messages", []) or []:
+        info = m.get("info", {}) or {}
+        if info.get("role") != "user":
+            continue
+        for p in m.get("parts", []) or []:
+            text = (p.get("text") or "").strip()
+            if p.get("type") == "text" and text:
+                return text
+    return _opencodeSessionInfo(export).get("title", "")
+
+
+def _opencodeSteps(export: dict) -> list[dict]:
+    """Collapse assistant messages into steps: reasoning text + output + usage.
+
+    Reasoning text may be empty when the provider returned an opaque
+    (encrypted) thinking block — the API-reported ``tokens.reasoning``
+    count is still recorded so parity tooling can flag the gap.  When the
+    provider ships an encrypted reasoning block (e.g. OpenAI-style
+    ``reasoningEncryptedContent``), it is surfaced in ``reasoning_meta``
+    for inventory only; it is never decoded.
+    """
+    steps: list[dict] = []
+    for m in export.get("messages", []) or []:
+        info = m.get("info", {}) or {}
+        if info.get("role") != "assistant":
+            continue
+        reasoning = ""
+        output = ""
+        reasoning_meta: dict = {}
+        for p in m.get("parts", []) or []:
+            ptype = p.get("type")
+            if ptype == "reasoning":
+                reasoning = (p.get("text") or "").strip()
+                reasoning_meta = p.get("metadata") or {}
+            elif ptype == "text":
+                output = (p.get("text") or "").strip()
+        tokens = info.get("tokens") or {}
+        steps.append(
+            {
+                "reasoning": reasoning,
+                "output": output,
+                "reasoning_meta": reasoning_meta,
+                "tokens": tokens,
+                "cost": info.get("cost", 0),
+                "model": info.get("modelID", ""),
+                "provider": info.get("providerID", ""),
+            }
+        )
+    return steps
+
+
+def _opencodeChain(export: dict, task: str, steps: list[dict], chain_num: int, max_thoughts: int = 10) -> str | None:
+    """Convert an exported opencode session into a TinyToT chain block.
+
+    Parity metadata (session id, provider, model, token counts, cost) is
+    embedded in an HTML comment that ``loadReasoningChains`` ignores.
+    """
+    thoughts: list[str] = []
+    for step in steps:
+        reasoning = step["reasoning"]
+        if reasoning:
+            first_line = reasoning.split("\n")[0].strip()[:200]
+            if len(first_line) > 20:
+                thoughts.append(first_line)
+        else:
+            reported = step["tokens"].get("reasoning", 0)
+            if reported:
+                thoughts.append(f"Reasoning withheld — {reported} reported thinking tokens in an opaque block.")
+        if len(thoughts) >= max_thoughts:
+            break
+
+    if not thoughts:
+        return None
+
+    conclusion = "Task completed."
+    for step in reversed(steps):
+        if step["output"]:
+            conclusion = step["output"].split("\n")[0].strip()[:200] or "Task completed."
+            break
+
+    info = _opencodeSessionInfo(export)
+    model = info.get("model") or {}
+    meta = {
+        "session": info.get("id", ""),
+        "slug": info.get("slug", ""),
+        "title": info.get("title", ""),
+        "provider": model.get("providerID", ""),
+        "model": model.get("id", ""),
+        "tokens": info.get("tokens") or {},
+        "cost": info.get("cost", 0),
+    }
+
+    title = (task[:80] + "...") if len(task) > 80 else (task or f"OpenCode Chain {chain_num}")
+
+    lines = [
+        f"## Chain {chain_num}: {title}",
+        f"<!-- Handles: {_taskHandles(task)} -->",
+        f"<!-- trace: {json.dumps(meta, separators=(',', ':'))} -->",
+    ]
+    for i, thought in enumerate(thoughts, 1):
+        lines.append(f"Thought {i}: {thought}")
+    lines.append(f"Conclusion: {conclusion}")
+
+    return "\n".join(lines)
+
+
+def ingestOpenCode(
+    export_dir: Path,
+    out_dir: Path,
+    limit: int = 0,
+    max_chains: int = 10000,
+) -> dict[str, int]:
+    """Convert exported opencode session traces into category chains.
+
+    Traces are classified by task domain (reusing the OpenTraces mapper) and
+    appended to ``opencode_augment_<category>.md`` files.  Like the
+    ``opentraces_*`` files, ``opencode_augment_*`` files are excluded from the
+    routing index (see ``tinytot.retrieval.buildChainIndex``) so auto-ingested
+    agent traces do not distort category routing.
+
+    Returns: {display_name: chain_count}
+    """
+    from tinytot.content import getCategories, loadReasoningChains
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    existing_cats = getCategories(out_dir)
+
+    cat_chains: dict[str, list[str]] = {}
+    general_chains: list[str] = []
+    chain_count = 0
+
+    for export in _iterOpenCodeExports(export_dir):
+        task = _opencodeTask(export)
+        steps = _opencodeSteps(export)
+        if not steps:
+            continue
+        chain = _opencodeChain(export, task, steps, 0)
+        if chain is None:
+            continue
+
+        domain = _classifyTaskDomain(task)
+        target_cat = _DOMAIN_TO_CATEGORY.get(domain)
+        if target_cat and target_cat in existing_cats:
+            cat_chains.setdefault(target_cat, []).append(chain)
+        else:
+            general_chains.append(chain)
+
+        chain_count += 1
+        if limit and chain_count >= limit:
+            break
+
+    if not chain_count:
+        logger.warning("No chains extracted from %s", export_dir)
+        return {}
+
+    results: dict[str, int] = {}
+    for cat_name in sorted(set(cat_chains.keys()) | {"general"}):
+        if cat_name == "general":
+            chains_list = general_chains
+            display_name = "opencode_augment_general"
+            keywords = "opencode, agent, reasoning, general, miscellaneous"
+            header_desc = "OpenCode agent traces that do not map to a TinyToT category"
+        else:
+            chains_list = cat_chains.get(cat_name, [])
+            display_name = f"opencode_augment_{cat_name}"
+            keywords = f"opencode, {cat_name}, agent, reasoning"
+            header_desc = f"OpenCode {cat_name} augment chains"
+
+        if not chains_list:
+            continue
+
+        augment_file = out_dir / f"{display_name}.md"
+        if augment_file.exists():
+            loadReasoningChains.cache_clear()
+            existing_chains = loadReasoningChains(f"{display_name}.md", out_dir)
+            start_num = len(existing_chains) + 1
+            existing_content = augment_file.read_text(encoding="utf-8")
+        else:
+            existing_content = (
+                "---\n"
+                f"category: {display_name}\n"
+                f"keywords: {keywords}\n"
+                "---\n\n"
+                f"# OpenCode Augment — {cat_name.title()}\n\n"
+                f"{header_desc}\n\n"
+            )
+            start_num = 1
+
+        blocks = []
+        for i, ct in enumerate(chains_list[:max_chains]):
+            fixed = re.sub(r"^## Chain \d*:?", f"## Chain {start_num + i}:", ct, count=1)
+            blocks.append(fixed)
+        if not existing_content.endswith("\n"):
+            existing_content += "\n"
+        augment_file.write_text(existing_content + "\n\n".join(blocks) + "\n", encoding="utf-8")
+        results[display_name] = len(blocks)
+        logger.info("Wrote %d chains to %s (total: %d)", len(blocks), augment_file, start_num + len(blocks) - 1)
+
+    return results
+
+
+class OpenCodeSource(IngestSource):
+    name = "opencode"
+    label = "Ingest OpenCode traces"
+    help = (
+        "Ingest exported opencode session traces (JSON from `opencode export`) "
+        "into TinyToT categories. Each session's task is classified by domain and "
+        "appended to opencode_augment_*.md files, with provider/model/token parity "
+        "metadata preserved in chain comments."
+    )
+
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "dir",
+            type=Path,
+            nargs="?",
+            default=DATA_DIR / ".sources" / "opencode",
+            help="Directory of opencode session exports (JSON). Default: data/.sources/opencode",
+        )
+        parser.add_argument(
+            "--session",
+            type=str,
+            action="append",
+            default=None,
+            help="Export a session id via `opencode export` into the export dir "
+            "before ingesting. Repeatable. Requires the opencode CLI on PATH.",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=0,
+            help="Max sessions to process (0=all)",
+        )
+        parser.add_argument(
+            "--max-chains",
+            type=int,
+            default=10000,
+            help="Max chains to append per target category (default: 10000)",
+        )
+
+    def run(self, args: argparse.Namespace) -> list[tuple[str, int, Path]]:
+        from tinytot.content import getCategories, loadReasoningChains
+        from tinytot.retrieval import buildChainIndex, buildChainMeta
+
+        getCategories.cache_clear()
+        loadReasoningChains.cache_clear()
+        buildChainIndex.cache_clear()
+        buildChainMeta.cache_clear()
+
+        export_dir: Path = args.dir
+        export_dir.mkdir(parents=True, exist_ok=True)
+
+        if args.session:
+            _exportSessions(args.session, export_dir)
+
+        cat_counts = ingestOpenCode(
+            export_dir=export_dir,
+            out_dir=CATEGORY_DIR,
+            limit=args.limit,
+            max_chains=args.max_chains,
+        )
+        results = []
+        if cat_counts:
+            for display_name, count in sorted(cat_counts.items()):
+                results.append((display_name, count, CATEGORY_DIR / f"{display_name}.md"))
+
+        getCategories.cache_clear()
+        loadReasoningChains.cache_clear()
+        buildChainIndex.cache_clear()
+        buildChainMeta.cache_clear()
+
+        return results
+
+
+def _exportSessions(session_ids: list[str], export_dir: Path) -> None:
+    """Export opencode sessions to JSON files via the opencode CLI."""
+    import subprocess
+
+    for sid in session_ids:
+        dest = export_dir / f"{sid}.json"
+        if dest.exists():
+            logger.info("Session export already present: %s", dest)
+            continue
+        logger.info("Exporting session %s ...", sid)
+        try:
+            proc = subprocess.run(
+                ["opencode", "export", sid],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.warning("opencode export failed for %s: %s", sid, exc)
+            continue
+        if proc.returncode != 0:
+            logger.warning("opencode export failed for %s: %s", sid, proc.stderr.strip())
+            continue
+        export_dir.mkdir(parents=True, exist_ok=True)
+        dest.write_text(proc.stdout, encoding="utf-8")
+        logger.info("Wrote %s (%d bytes)", dest, dest.stat().st_size)
 
 
 # ---------------------------------------------------------------------------
@@ -1179,6 +1570,7 @@ _SOURCES: list[type[IngestSource]] = [
     GSM8KSource,
     PrincetonToTSource,
     OpenTracesSource,
+    OpenCodeSource,
     CSChainGenerator,
     ArgostranslateSource,
 ]
