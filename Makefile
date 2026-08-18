@@ -37,6 +37,7 @@ PORT ?= 11434
 	docs build-docs docs-serve live-docs \
 	examples \
 	ingest benchmark bench \
+	parity parity-tests \
 	build publish publish-test \
 	build-binary
 
@@ -54,7 +55,7 @@ install-deps: pre-check ## Install all dependencies into pipenv virtualenv
 	@echo "-------------- Installing dependencies --------------"
 	@pipenv --python $(PYTHON_VERSION)
 	@export PIP_INDEX_URL=$${PIP_INDEX_URL:-$$($(PYTHON) -c "import re; m=re.search(r'\[\[source\]\]\s*url = \"([^\"]+)\"', open('Pipfile').read()); print(m.group(1) if m else '')")} && \
-	pipenv run pip install -e ".[dev]"
+	unset BROWSER && pipenv run pip install -e ".[dev]"
 	@pipenv run pre-commit install
 
 install: install-deps ## Install dependencies. Run this first.
@@ -154,3 +155,18 @@ benchmark: ingest ## Run full benchmark suite (ingests first)
 	@pipenv run tinytot-bench all --limit 500
 
 bench: benchmark ## Alias for benchmark
+
+parity: ## Ingest opencode exports, then run reasoning parity checks (tinytot-parity all)
+	@echo "-------------- Ingesting opencode session exports --------------"
+	@pipenv run tinytot-ingest opencode
+	@echo "-------------- Running TinyToT reasoning parity checks --------------"
+	@pipenv run tinytot-parity all
+
+parity-tests: ## Run reasoning parity unit tests only
+	@echo "-------------- Running pytest (parity unit-tests) --------------"
+	@pipenv run pytest \
+		--junit-xml=junit_xml_test_report.xml \
+		--cov-branch \
+		--cov=tinytot.parity \
+		--cov-report=term-missing \
+		tinytot/tests/unit/test_parity.py

@@ -2,8 +2,8 @@
 
 Decompose a prompt into steps, execute each via tools, synthesise via ToT.
 
-    The loop uses TinyToT's own ToT engine (``generateReasoningResponse``) for
-    both planning and synthesis — no external LLM needed.
+The loop uses TinyToT's own ToT engine (``generateReasoningResponse``) for
+both planning and synthesis — no external LLM needed.
 
 **Module**: `tinytot.agent`
 

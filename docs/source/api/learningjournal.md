@@ -2,15 +2,15 @@
 
 Append-only markdown learning journal.
 
-    One file per day at ``data/journal/YYYY-MM-DD.md``.
-    Format mirrors Hermes so ``loadHermesJournal`` in content.py can parse it.
+One file per day at ``data/journal/YYYY-MM-DD.md``.
+Format mirrors Hermes so ``loadHermesJournal`` in content.py can parse it.
 
 **Module**: `tinytot.agent`
 
 ## Constructor
 
 ```python
-LearningJournal(self, journal_dir: 'Path' = WindowsPath('D:/WS/TinyToT/tinytot/_data/journal')) -> 'None'
+LearningJournal(self, journal_dir: 'Path' = Path('tinytot/_data/journal')) -> 'None'
 ```
 
 ## Methods

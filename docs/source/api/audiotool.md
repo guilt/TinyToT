@@ -2,10 +2,10 @@
 
 Analyse an audio file: duration, sample rate, channels, and speech density hint.
 
-    Uses Python's built-in ``wave`` module for WAV files (no deps).
-    For MP3/AAC/OGG, uses ffprobe when available; otherwise returns file-level metadata.
-    Speech density is estimated via zero-crossing rate on the raw PCM samples —
-    a high ZCR suggests speech or noisy audio; low ZCR suggests music or silence.
+Uses Python's built-in ``wave`` module for WAV files (no deps).
+For MP3/AAC/OGG, uses ffprobe when available; otherwise returns file-level metadata.
+Speech density is estimated via zero-crossing rate on the raw PCM samples —
+a high ZCR suggests speech or noisy audio; low ZCR suggests music or silence.
 
 **Module**: `tinytot.tools_ext`
 

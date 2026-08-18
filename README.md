@@ -317,12 +317,15 @@ tinytot-parity cross        # cross-provider reasoning similarity
 tinytot-parity routing      # TinyToT routing vs. expected category
 tinytot-parity all          # all three checks
 tinytot-parity all --json   # machine-readable JSON output
+make parity       # ingest opencode exports + run all three checks
+make parity-tests # run the parity unit tests (test_parity.py) only
 ```
 
 All checks default to `tinytot/_data/.sources/opencode/` for exports; override
 with a positional dir. Routing parity is measured per export — currently
 **12/12 (100%)** on the 3-task × 4-model corpus. This is how the precision-first
-word-problem routing above was validated end-to-end.
+word-problem routing above was validated end-to-end. The parity unit tests run
+alongside the rest of the suite (`make tests`).
 
 ---
 
@@ -399,8 +402,8 @@ make docs         # regenerate API docs + build Sphinx HTML
 make docs-serve   # serve docs on localhost
 make live-docs    # live-reload docs server
 make benchmark    # ingest corpora then run all benchmarks (alias: make bench)
-make docs         # regenerate API docs + build Sphinx HTML
-tinytot-parity all  # reasoning parity vs. opencode session exports (see above)
+make parity       # ingest opencode exports, then run tinytot-parity all (see above)
+make parity-tests # parity unit tests only (tinytot/tests/unit/test_parity.py)
 make build        # build wheel
 make build-binary # build self-contained binary (dist/tinytot or dist/tinytot.exe)
 ```

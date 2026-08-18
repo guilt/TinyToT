@@ -2,9 +2,9 @@
 
 Analyse an image file: dimensions, colour palette, pixel stats, and embedded text.
 
-    This is TinyToT's deterministic first pass — no neural weights required.
-    It uses Pillow for pixel analysis and a simple frequency-based OCR heuristic
-    to surface large text regions.  For full vision / OCR, wire an external model.
+This is TinyToT's deterministic first pass — no neural weights required.
+It uses Pillow for pixel analysis and a simple frequency-based OCR heuristic
+to surface large text regions.  For full vision / OCR, wire an external model.
 
 **Module**: `tinytot.tools_ext`
 

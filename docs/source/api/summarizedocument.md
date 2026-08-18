@@ -10,19 +10,19 @@ summarizeDocument(text: 'str', max_words: 'int' = 50, chunk_size: 'int' = 150, i
 
 Summarise *text* to at most *max_words* words using extractive TF-IDF.
 
-    For short texts (< ARC_THRESHOLD sentences) standard extractive selection is used.
-    For long texts (novels, reports) arc-aware election picks the best sentence from
-    each narrative quarter (setup / rising / climax / resolution) and stitches them
-    into a flowing prose summary.
+For short texts (< ARC_THRESHOLD sentences) standard extractive selection is used.
+For long texts (novels, reports) arc-aware election picks the best sentence from
+each narrative quarter (setup / rising / climax / resolution) and stitches them
+into a flowing prose summary.
 
-    Args:
-        text:       Full document text.
-        max_words:  Word budget for the final summary.
-        chunk_size: Unused (kept for API compatibility).
-        inter_words: Unused (kept for API compatibility).
+Args:
+    text:       Full document text.
+    max_words:  Word budget for the final summary.
+    chunk_size: Unused (kept for API compatibility).
+    inter_words: Unused (kept for API compatibility).
 
-    Returns:
-        Summary string of at most *max_words* words.
+Returns:
+    Summary string of at most *max_words* words.
 
 
 **Examples**

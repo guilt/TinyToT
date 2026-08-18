@@ -121,3 +121,6 @@ tinytot/_data/journal/
 
 # Local build overrides (copy Makefile.user.template to create)
 Makefile.user
+
+# Local logs
+*.log

@@ -2,11 +2,11 @@
 
 Download and preview media from URLs: YouTube, Twitter/X, Instagram, TikTok, etc.
 
-    Uses yt-dlp for downloading.  By default fetches metadata only (no download)
-    so the tool is safe to call on any URL.  Set operation='download' to save
-    the media locally and return the file path for further analysis.
+Uses yt-dlp for downloading.  By default fetches metadata only (no download)
+so the tool is safe to call on any URL.  Set operation='download' to save
+the media locally and return the file path for further analysis.
 
-    Requires yt-dlp: pip install yt-dlp
+Requires yt-dlp: pip install yt-dlp
 
 **Module**: `tinytot.tools_ext`
 

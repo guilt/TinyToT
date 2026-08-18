@@ -1,14 +1,24 @@
 # See documentation at: https://pre-commit.com/
 # You can update your hooks with ``pre-commit autoupdate`` on the command line.
 # The tests and docs directories are ignored for some hooks.
+#
+# NOTE: ruff and pre-commit-hooks are declared as `language: system` so they run
+# the copies already installed in the pipenv virtualenv (see Pipfile [dev-packages]).
+# This avoids pre-commit building its own hook environments, which on Termux/Android
+# forces a from-source rebuild of ruff (Rust) on every run. Run via `make precommit`
+# (i.e. `pipenv run pre-commit run --all-files`) so the venv's bin/ is on PATH.
+# The pinned `rev`s are kept for autoupdate metadata only; the effective version
+# is whatever `ruff` / `pre-commit-hooks` are installed in the pipenv.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.20
     hooks:
       - id: ruff
+        language: system
         types_or: [python, pyi]
         args: [--fix]
       - id: ruff-format
+        language: system
         types_or: [python, pyi]
 
   # Mypy: Optional static type checking
@@ -27,13 +37,21 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        language: system
       - id: end-of-file-fixer
+        language: system
       - id: debug-statements
+        language: system
       - id: check-yaml
+        language: system
       - id: check-merge-conflict
+        language: system
       - id: check-ast
+        language: system
       - id: check-docstring-first
+        language: system
       - id: name-tests-test
+        language: system
         args: ["--pytest-test-first"]
         exclude: ^tinytot/tests/conftest\.py$|^tinytot/tests/check_benchmarks\.py$|^tinytot/tests/check_data_quality\.py$
 

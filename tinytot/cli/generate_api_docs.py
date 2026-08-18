@@ -6,6 +6,12 @@ Dynamically discovers all public symbols exported via __all__ in each
 submodule of ROOT_PACKAGE, then generates per-symbol markdown files
 and a top-level index — no hardcoded class lists or section headers.
 
+Signatures are rendered with filesystem-neutral defaults: any absolute
+filesystem path (e.g. a ``PosixPath('/home/user/.../_data/...')`` default
+value) is rewritten as a portable ``Path('tinytot/_data/...')`` so the
+generated docs don't embed build-machine paths and remain stable when
+regenerated on other systems.
+
 ROOT_PACKAGE is derived from docs/source/conf.py so there is no
 configuration to maintain in this script.
 
@@ -18,10 +24,12 @@ from __future__ import annotations
 import ast
 import importlib
 import inspect
+import os
 import pkgutil
 import sys
 from enum import EnumMeta
-from pathlib import Path
+from functools import lru_cache
+from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -33,7 +41,7 @@ _CONF_PY = _REPO_ROOT / "docs" / "source" / "conf.py"
 _API_DIR = _REPO_ROOT / "docs" / "source" / "api"
 
 
-def _parse_root_package() -> str:
+def _parseRootPackage() -> str:
     """Read docs/source/conf.py and return the importable root package name."""
     if not _CONF_PY.exists():
         raise RuntimeError(
@@ -93,7 +101,7 @@ def _parse_root_package() -> str:
             "  sys.path.insert(0, os.path.abspath(…))  # legacy sys.path style"
         )
 
-    def _find_root_package(base: Path, hint: str = "") -> str:
+    def _findRootPackage(base: Path, hint: str = "") -> str:
         """Walk base to find the shallowest single-branch importable package.
 
         When multiple packages exist at the same level, prefer the one whose
@@ -141,12 +149,12 @@ def _parse_root_package() -> str:
         raise RuntimeError(f"No importable packages found under {base}")
 
     if inserted_path is not None:
-        return _find_root_package((_CONF_PY.parent / inserted_path).resolve(), hint=dist_name or "")
+        return _findRootPackage((_CONF_PY.parent / inserted_path).resolve(), hint=dist_name or "")
     else:
-        return _find_root_package(_REPO_ROOT, hint=dist_name or "")
+        return _findRootPackage(_REPO_ROOT, hint=dist_name or "")
 
 
-ROOT_PACKAGE = _parse_root_package()
+ROOT_PACKAGE = _parseRootPackage()
 _API_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -155,7 +163,7 @@ _API_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 
 
-def format_docstring(docstring: str) -> str:
+def formatDocstring(docstring: str) -> str:
     """Convert a raw docstring to clean markdown."""
     if not docstring:
         return ""
@@ -202,11 +210,87 @@ def format_docstring(docstring: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Path-neutralizing rendering
+#
+# Function/class signature defaults often point into the installed package
+# data dir (e.g. ``categoryDir: Path = CATEGORY_DIR``).  Because those
+# constants resolve to absolute paths at import time, ``inspect.signature``
+# renders build-machine-specific values like
+# ``PosixPath('/home/user/repo/tinytot/_data/categories')``.  These would
+# change on every machine that regenerates the docs, so we rewrite them to
+# portable, package-relative ``Path('tinytot/_data/categories')`` defaults.
+# This only affects the *rendered text* of the generated docs — nothing else.
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=1)
+def _packageDir() -> Path:
+    """Absolute directory containing ROOT_PACKAGE."""
+    return Path(inspect.getfile(importlib.import_module(ROOT_PACKAGE))).parent
+
+
+@lru_cache(maxsize=1)
+def _packageAnchor() -> Path:
+    """Parent of the package dir, so portable defaults read e.g.
+    ``Path('tinytot/_data/categories')`` instead of a bare relative path."""
+    return _packageDir().parent
+
+
+def _portablePath(value: PurePath) -> Optional[str]:
+    """Render a Path as a ``<pkg>/...`` slash-separated string (relative to the
+    directory containing the package), or None when it can't be expressed that
+    way (in which case the caller falls back to the built-in repr)."""
+    try:
+        rel = os.path.relpath(os.path.abspath(os.fspath(value)), _packageAnchor())
+    except ValueError:  # e.g. different drives on Windows
+        return None
+    if rel == "." or rel.startswith("..") or os.path.isabs(rel):
+        return None
+    return rel.replace(os.sep, "/")
+
+
+def _portableRepr(value: object) -> str:
+    """repr() for doc output that abstracts the build machine's filesystem."""
+    if isinstance(value, PurePath):
+        rel = _portablePath(value)
+        if rel is not None:
+            return f"Path('{rel}')"
+    return repr(value)
+
+
+def _portableStrDefault(value: object) -> str:
+    """str()-style default rendering (no quotes for plain values) that still
+    abstracts filesystem paths."""
+    if isinstance(value, PurePath):
+        rel = _portablePath(value)
+        if rel is not None:
+            return f"Path('{rel}')"
+    return str(value)
+
+
+def _signatureText(func) -> str:
+    """str(inspect.signature(func)) with build-machine paths abstracted.
+
+    Keeps inspect's full formatting (positional-only markers, *args/**kwargs,
+    annotations, etc.) and only rewrites the reprs of default values.
+    """
+    sig = inspect.signature(func)
+    text = str(sig)
+    for param in sig.parameters.values():
+        if param.default is not inspect.Parameter.empty:
+            orig = repr(param.default)
+            portable = _portableRepr(param.default)
+            if portable != orig:
+                text = text.replace(orig, portable)
+    return text
+
+
+# ---------------------------------------------------------------------------
 # Per-symbol doc generators
 # ---------------------------------------------------------------------------
 
 
-def _pydantic_fields_section(cls) -> str:
+def _pydanticFieldsSection(cls) -> str:
     fields = getattr(cls, "model_fields", None)
     if not fields:
         return ""
@@ -215,26 +299,26 @@ def _pydantic_fields_section(cls) -> str:
         annotation = getattr(field_info, "annotation", "")
         description = field_info.description or ""
         required = field_info.is_required() if hasattr(field_info, "is_required") else False
-        default = "" if required else f", default: `{field_info.default}`"
+        default = "" if required else f", default: `{_portableStrDefault(field_info.default)}`"
         type_str = getattr(annotation, "__name__", str(annotation))
         lines.append(f"- `{name}` ({type_str}{default}): {description}")
     return "\n".join(lines) + "\n"
 
 
-def generate_class_doc(cls, module_name: str, output_file: Path) -> None:
+def generateClassDoc(cls, module_name: str, output_file: Path) -> None:
     doc = f"# {cls.__name__}\n\n"
     if cls.__doc__:
-        doc += format_docstring(cls.__doc__) + "\n\n"
+        doc += formatDocstring(cls.__doc__) + "\n\n"
     doc += f"**Module**: `{module_name}`\n\n"
-    doc += _pydantic_fields_section(cls)
+    doc += _pydanticFieldsSection(cls)
 
     try:
-        init_sig = inspect.signature(cls.__init__)
-        if len(list(init_sig.parameters)) > 1:
+        init_params = inspect.signature(cls.__init__).parameters
+        if len(list(init_params)) > 1:
             doc += "## Constructor\n\n"
-            doc += f"```python\n{cls.__name__}{init_sig}\n```\n\n"
+            doc += f"```python\n{cls.__name__}{_signatureText(cls.__init__)}\n```\n\n"
             if cls.__init__.__doc__:
-                doc += format_docstring(cls.__init__.__doc__) + "\n\n"
+                doc += formatDocstring(cls.__init__.__doc__) + "\n\n"
     except (ValueError, TypeError):
         pass
 
@@ -247,37 +331,36 @@ def generate_class_doc(cls, module_name: str, output_file: Path) -> None:
         doc += "## Methods\n\n"
         for name, method in methods:
             try:
-                sig = inspect.signature(method)
-                doc += f"### `{name}{sig}`\n\n"
+                doc += f"### `{name}{_signatureText(method)}`\n\n"
             except (ValueError, TypeError):
                 doc += f"### `{name}()`\n\n"
             if method.__doc__:
-                doc += format_docstring(method.__doc__) + "\n\n"
+                doc += formatDocstring(method.__doc__) + "\n\n"
 
     output_file.write_text(doc.rstrip("\n") + "\n", encoding="utf-8")
     print(f"  Generated: {output_file.name}")
 
 
-def generate_enum_doc(cls, module_name: str, output_file: Path) -> None:
+def generateEnumDoc(cls, module_name: str, output_file: Path) -> None:
     doc = f"# {cls.__name__}\n\n"
     if cls.__doc__:
-        doc += format_docstring(cls.__doc__) + "\n\n"
+        doc += formatDocstring(cls.__doc__) + "\n\n"
     doc += f"**Module**: `{module_name}`\n\n**Type**: Enum\n\n## Values\n\n"
     for member in cls:
-        doc += f"- **`{member.name}`**: `{member.value!r}`\n"
+        doc += f"- **`{member.name}`**: `{_portableRepr(member.value)}`\n"
     doc += "\n"
     output_file.write_text(doc.rstrip("\n") + "\n", encoding="utf-8")
     print(f"  Generated: {output_file.name}")
 
 
-def generate_function_doc(func, module_name: str) -> str:
+def generateFunctionDoc(func, module_name: str) -> str:
     try:
-        sig_str = f"{func.__name__}{inspect.signature(func)}"
+        sig_str = f"{func.__name__}{_signatureText(func)}"
     except (ValueError, TypeError):
         sig_str = f"{func.__name__}()"
     doc = f"## `{func.__name__}`\n\n```python\n{sig_str}\n```\n\n"
     if func.__doc__:
-        doc += format_docstring(func.__doc__) + "\n\n"
+        doc += formatDocstring(func.__doc__) + "\n\n"
     return doc
 
 
@@ -290,7 +373,7 @@ def _slug(name: str) -> str:
     return name.lower().replace(".", "_")
 
 
-def discover_and_document() -> Dict[str, List[Tuple[str, str]]]:
+def discoverAndDocument() -> Dict[str, List[Tuple[str, str]]]:
     """Walk every submodule under ROOT_PACKAGE, collect public symbols from
     __all__, generate per-symbol markdown docs, and return an index."""
     root_mod = importlib.import_module(ROOT_PACKAGE)
@@ -324,12 +407,12 @@ def discover_and_document() -> Dict[str, List[Tuple[str, str]]]:
             out = _API_DIR / filename
 
             if isinstance(obj, EnumMeta):
-                generate_enum_doc(obj, modname, out)
+                generateEnumDoc(obj, modname, out)
             elif inspect.isclass(obj):
-                generate_class_doc(obj, modname, out)
+                generateClassDoc(obj, modname, out)
             else:
                 content = f"# `{name}`\n\n**Module**: `{modname}`\n\n"
-                content += generate_function_doc(obj, modname)
+                content += generateFunctionDoc(obj, modname)
                 out.write_text(content.rstrip("\n") + "\n", encoding="utf-8")
                 print(f"  Generated: {out.name}")
 
@@ -346,7 +429,7 @@ def discover_and_document() -> Dict[str, List[Tuple[str, str]]]:
 # ---------------------------------------------------------------------------
 
 
-def generate_index(index: Dict[str, List[Tuple[str, str]]]) -> None:
+def generateIndex(index: Dict[str, List[Tuple[str, str]]]) -> None:
     root_mod = importlib.import_module(ROOT_PACKAGE)
     pkg_doc = (root_mod.__doc__ or "").strip().split("\n")[0]
 
@@ -379,8 +462,8 @@ def main() -> None:
 
     ensureUtf8Stdio()
     print(f"Generating API docs for {ROOT_PACKAGE} ...\n")
-    index = discover_and_document()
-    generate_index(index)
+    index = discoverAndDocument()
+    generateIndex(index)
     print(f"\nDone. Output: {_API_DIR}")
 
 

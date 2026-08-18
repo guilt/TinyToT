@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Optional
 
 from tinytot._stdio import ensureUtf8Stdio
-from tinytot.content import CATEGORY_DIR
+from tinytot.content import CATEGORY_DIR, DATA_DIR
 from tinytot.ingest import (
     _DOMAIN_TO_CATEGORY,
     _classifyTaskDomain,
@@ -469,8 +469,8 @@ def main() -> None:
         "export_dir",
         type=Path,
         nargs="?",
-        default=Path("data/.sources/opencode"),
-        help="Directory of opencode session exports (JSON)",
+        default=DATA_DIR / ".sources" / "opencode",
+        help="Directory of opencode session exports (JSON). Default: tinytot/_data/.sources/opencode",
     )
     parser.add_argument("--json", action="store_true", help="Emit raw JSON instead of a text report")
 

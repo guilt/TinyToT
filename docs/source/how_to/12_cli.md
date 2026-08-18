@@ -131,7 +131,7 @@ tinytot-parity [export_dir] {fidelity,cross,routing,all} [--json] [--category-di
 
 | Flag | Description |
 |---|---|
-| `export_dir` | Directory of opencode session exports (default: `data/.sources/opencode`) |
+| `export_dir` | Directory of opencode session exports (default: `tinytot/_data/.sources/opencode`) |
 | `--json` | Emit raw JSON instead of a text report |
 | `--category-dir DIR` | Category dir used for routing parity |
 
@@ -142,6 +142,8 @@ tinytot-parity                 # all checks on the default export dir
 tinytot-parity routing         # routing parity only
 tinytot-parity all --json      # machine-readable output
 tinytot-parity fidelity /path/to/exports
+make parity                    # ingest opencode exports, then run all checks
+make parity-tests              # run the parity unit tests only
 ```
 
 ---

@@ -296,11 +296,16 @@ tinytot-parity cross        # cross-provider reasoning similarity
 tinytot-parity routing      # TinyToT routing vs. expected category
 tinytot-parity all          # all three checks
 tinytot-parity all --json   # machine-readable JSON output
+make parity       # ingest opencode exports + run all three checks
 ```
 
 All checks default to `data/.sources/opencode/` for exports; override with a
 positional dir. Routing parity is measured per export — currently **12/12
 (100%)** on the 3-task × 4-model corpus.
+
+The parity unit tests live in `tinytot/tests/unit/test_parity.py` and run with
+the rest of the suite (`make tests`); run them on their own with
+`make parity-tests`.
 
 ---
 
