@@ -2,7 +2,6 @@
 
 Indexes yaml header + ## Belief only. Does not index .pt, raw audio, or jpeg bytes.
 """
-
 from __future__ import annotations
 
 import os
@@ -87,8 +86,8 @@ class Sidecar:
         bits = [self.belief.strip()] if self.belief.strip() else []
         if not bits:
             return ""
-        src = self.meta.get("source", "")
-        when = self.meta.get("time", "")
+        src = str(self.meta.get("source", "") or "")
+        when = str(self.meta.get("time", "") or "")
         header = " ".join(x for x in (when, src, self.modality) if x)
         return f"{header}\n{bits[0]}".strip() if header else bits[0]
 
@@ -135,22 +134,10 @@ def iter_sidecars(*roots: Path) -> list[Sidecar]:
     return found
 
 
-def write_sidecar(
-    out_dir: Path,
-    stem: str,
-    modality: str,
-    belief: str,
-    meta: dict[str, Any] | None = None,
-) -> Path:
+def write_sidecar(out_dir: Path, stem: str, modality: str, belief: str, meta: dict[str, Any] | None = None) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stem}.{modality}.md"
-    fields = {
-        "modality": modality,
-        "time": "",
-        "source": "hand",
-        "confidence": 0.4,
-        "belief_ok": bool(belief.strip()),
-    }
+    fields = {"modality": modality, "time": "", "source": "hand", "confidence": 0.4, "belief_ok": bool(belief.strip())}
     if meta:
         fields.update(meta)
     lines = ["---"]
@@ -159,24 +146,18 @@ def write_sidecar(
             lines.append(f"{k}: {'true' if v else 'false'}")
         else:
             lines.append(f"{k}: {v}")
-    lines.append("---")
-    lines.append("")
-    lines.append("## Belief")
-    lines.append(belief.strip() or "")
-    lines.append("")
+    lines += ["---", "", "## Belief", belief.strip() or "", ""]
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
 
 def sidecar_passages(*roots: Path) -> list[tuple[str, str]]:
-    """(heading, passage) pairs TinyToT can treat as knowledge after reload."""
     out: list[tuple[str, str]] = []
     for sc in iter_sidecars(*roots):
         text = sc.passage_text()
         if not text:
             continue
-        heading = f"sidecar:{sc.modality}:{sc.path.name}"
-        out.append((heading, text))
+        out.append((f"sidecar:{sc.modality}:{sc.path.name}", text))
     return out
 
 
@@ -187,3 +168,18 @@ def sense_flags(*roots: Path) -> dict[str, str]:
     howl = os.environ.get("TINYTOT_HOWL", "off")
     flags["howl"] = howl if howl in ("off", "ready") else "off"
     return flags
+
+
+def distill_into_knowledge(knowledge_dir: Path, *roots: Path) -> Path | None:
+    passages = sidecar_passages(*roots)
+    knowledge_dir.mkdir(parents=True, exist_ok=True)
+    dest = knowledge_dir / "sidecars.md"
+    if not passages:
+        if dest.exists():
+            dest.unlink()
+        return None
+    lines = ["# Sidecar beliefs", ""]
+    for heading, passage in passages:
+        lines += [f"## {heading}", passage, ""]
+    dest.write_text("\n".join(lines), encoding="utf-8")
+    return dest
