@@ -5,6 +5,20 @@ If a sense is missing it says so. Port 11434. Files you can delete.
 
 Self-benches measure **consistency with the cache**, not discovery of the world.
 
+## Family extras (git until PyPI)
+
+TinyToT does not require a mouth, ears, or borrowed eyes. Opt in:
+
+```bash
+pip install -e ".[howl]"     # tinyhowl @ git+https://github.com/guilt/tinyhowl.git@bananey
+pip install -e ".[ear]"
+pip install -e ".[eye]"
+pip install -e ".[nano]"
+pip install -e ".[family]"   # all four
+```
+
+After each package is on PyPI the extras become version pins (`tinyhowl>=0.1.2`, …).
+
 Miss string (grep this everywhere):
 
 ```
@@ -26,8 +40,8 @@ once inference is hooked; until then the unit tests own the miss contract.
 curl -s http://127.0.0.1:11434/api/status
 # eye: off if no eye files
 
-curl -s -X POST http://127.0.0.1:11434/api/ingest \\
-  -H 'Content-Type: application/json' \\
+curl -s -X POST http://127.0.0.1:11434/api/ingest \
+  -H 'Content-Type: application/json' \
   -d '{"modality":"eye","stem":"demo-mug","belief":"A mug on a desk."}'
 
 curl -s -X POST http://127.0.0.1:11434/api/reload
