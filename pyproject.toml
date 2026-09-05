@@ -78,6 +78,27 @@ translation = [
     "ctranslate2>=3.20.0",
     "sentencepiece>=0.1.99",
 ]
+# Family senses. Optional — TinyToT is still complete if they are missing.
+# git+https @bananey until each package lands on PyPI; then swap to
+#   "tinyhowl>=0.1.2" / "tinyear>=0.1.2" / "tinyeye>=0.1.1" / "nanotot>=0.1.1"
+howl = [
+    "tinyhowl @ git+https://github.com/guilt/tinyhowl.git@bananey",
+]
+ear = [
+    "tinyear @ git+https://github.com/guilt/tinyear.git@bananey",
+]
+eye = [
+    "tinyeye @ git+https://github.com/guilt/tinyeye.git@bananey",
+]
+nano = [
+    "nanotot @ git+https://github.com/guilt/nanotot.git@bananey",
+]
+family = [
+    "tinyhowl @ git+https://github.com/guilt/tinyhowl.git@bananey",
+    "tinyear @ git+https://github.com/guilt/tinyear.git@bananey",
+    "tinyeye @ git+https://github.com/guilt/tinyeye.git@bananey",
+    "nanotot @ git+https://github.com/guilt/nanotot.git@bananey",
+]
 dev = [
     "setuptools",
     "pytest>=6.0",

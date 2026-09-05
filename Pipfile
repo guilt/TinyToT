@@ -30,8 +30,19 @@ chardet = ">=5.0.0"
 psutil = {git = "https://github.com/giampaolo/psutil.git", ref = "master"}
 # Python 3.8 backport for importlib.resources.files() (included in 3.9+)
 importlib_resources = ">=5.0"
+# Family senses are *not* default packages. TinyToT stays complete without them.
+# Opt in (git until PyPI):
+#   pipenv run pip install -e ".[family]"
+#   pipenv install -e "git+https://github.com/guilt/tinyhowl.git@bananey#egg=tinyhowl"
+#   pipenv install -e "git+https://github.com/guilt/tinyear.git@bananey#egg=tinyear"
+#   pipenv install -e "git+https://github.com/guilt/tinyeye.git@bananey#egg=tinyeye"
+#   pipenv install -e "git+https://github.com/guilt/nanotot.git@bananey#egg=nanotot"
+# After PyPI: tinyhowl = ">=0.1.2"  etc.
 
 [dev-packages]
+# Optional family senses — `pipenv run pip install -e ".[family]"`
+# (git+https @bananey until PyPI; do not put them here so `pipenv install --dev`
+# stays a TinyToT-only checkout.)
 # Optional translation backends — `pipenv run pip install tinytot[translation]`
 # ctranslate2/argostranslate have no Android build (native C++/CUDA); expose
 # them only on platforms where wheels or sane source builds exist.

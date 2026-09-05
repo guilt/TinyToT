@@ -105,6 +105,15 @@ class ToolRunRequest(BaseModel):
     params: Dict[str, Any] = {}
 
 
+class IngestRequest(BaseModel):
+    modality: Optional[str] = "eye"
+    stem: Optional[str] = None
+    belief: Optional[str] = ""
+    markdown: Optional[str] = None
+    filename: Optional[str] = None
+    meta: Optional[Dict[str, Any]] = None
+
+
 # ---------------------------------------------------------------------------
 # Streaming helpers
 # ---------------------------------------------------------------------------
@@ -585,6 +594,40 @@ async def reload_data(knowledge_only: bool = False):
         "knowledge_passages": n_passages,
         "knowledge_only": knowledge_only,
     }
+
+
+@app.get("/api/status")
+async def organism_status():
+    """Organism flags: tot/howl/ear/eye plus sidecar counts."""
+    from .status import collect_status
+
+    return collect_status()
+
+
+@app.post("/api/ingest")
+async def ingest_sidecar(request: IngestRequest):
+    """Write a hand sidecar into the memory drop zone.
+
+    Body may be a belief + modality, or a raw markdown document.
+    Does not index .pt or raw media.
+    """
+    from datetime import datetime, timezone
+
+    from .sidecar import memory_dir, write_sidecar
+
+    dest = memory_dir()
+    dest.mkdir(parents=True, exist_ok=True)
+    if request.markdown:
+        name = request.filename or f"{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H-%M-%S')}.eye.md"
+        path = dest / name
+        path.write_text(request.markdown, encoding="utf-8")
+        return {"status": "wrote", "path": str(path)}
+    modality = (request.modality or "eye").lower()
+    if modality not in ("eye", "ear"):
+        raise HTTPException(status_code=400, detail="modality must be eye or ear")
+    stem = request.stem or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+    path = write_sidecar(dest, stem=stem, modality=modality, belief=request.belief or "", meta=request.meta)
+    return {"status": "wrote", "path": str(path)}
 
 
 @app.post("/api/quit")
