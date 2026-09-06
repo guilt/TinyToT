@@ -25,9 +25,6 @@ Pillow = ">=10.0.0"
 yt-dlp = ">=2024.1.0"
 # utilities
 chardet = ">=5.0.0"
-# psutil — upstream refuses to build/import on Android/Termux (sys.platform == "android").
-# giampaolo/psutil@master treats "android" as Linux (unreleased; 7.2.2 lacks it).
-psutil = {git = "https://github.com/giampaolo/psutil.git", ref = "master"}
 # Python 3.8 backport for importlib.resources.files() (included in 3.9+)
 importlib_resources = ">=5.0"
 
