@@ -17,6 +17,18 @@
 # Override if python3.8 is not on PATH under that exact name.
 # PYTHON_VERSION ?= 3.8
 
+# On Termux/Android use the installed Python 3.13 instead:
+#   PYTHON_VERSION ?= 3.13
+#
+# Reuse an existing in-project .venv (e.g. one created with
+# `python3 -m venv --system-site-packages .venv`) so that `make run`, `make
+# docs`, `make tests`, and `make precommit` work immediately without pipenv
+# creating a new env or reinstalling dependencies:
+#   export PIPENV_VENV_IN_PROJECT = 1
+#
+# Note: `pipenv run` never installs anything, so the daily targets are fast;
+# only `make install` (install-deps) syncs the full Pipfile.
+
 # --------------------------------------------------------------------------
 # Package index
 # --------------------------------------------------------------------------

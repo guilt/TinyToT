@@ -84,6 +84,18 @@ _THOUGHT_COUNT_EXEMPT_FILES = {
     "math.md",  # math computation solutions
 }
 
+# Augment chains (*_augment_*.md) are auto-generated from real agent traces
+# (opencode exports / OpenTraces) and are excluded from the routing index (see
+# README). Real traces may legitimately contain single-thought chains or terse
+# conclusions (e.g. a ```python fence captured as the trace conclusion), so
+# they are exempt from the strict curated-chain rules.
+_AUGMENT_MARKER = "_augment_"
+
+
+def _is_augment_file(fname: str) -> bool:
+    return _AUGMENT_MARKER in fname
+
+
 # These template files are intentionally SQL-only — no Python section.
 _PYTHON_SECTION_EXEMPT_TEMPLATES = {
     "sql_create.md",
@@ -141,7 +153,7 @@ def check_category_chains() -> List[Tuple[str, str]]:
 
             if stripped.startswith("## Chain"):
                 # Flush previous chain
-                if inChain and fname not in _CONCLUSION_EXEMPT_FILES:
+                if inChain and fname not in _CONCLUSION_EXEMPT_FILES and not _is_augment_file(fname):
                     _validate_chain(fname, currentTitle, thoughts, conclusion, issues)
                 # Start new chain
                 m = re.match(r"## Chain(?:\s+\d+)?:\s*(.+)", stripped)
@@ -161,7 +173,7 @@ def check_category_chains() -> List[Tuple[str, str]]:
                     conclusion = m.group(1).strip()
 
         # Flush last chain
-        if inChain and fname not in _CONCLUSION_EXEMPT_FILES:
+        if inChain and fname not in _CONCLUSION_EXEMPT_FILES and not _is_augment_file(fname):
             _validate_chain(fname, currentTitle, thoughts, conclusion, issues)
 
     return issues

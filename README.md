@@ -178,6 +178,10 @@ make install
 make run
 ```
 
+> **Termux / Android:** see [Getting Started — Termux/Android](docs/source/getting_started.md#termux--android)
+> for the venv/pipenv setup, the `pydantic-core` / `rpds-py` Android wheels, and
+> the Pillow and Go toolchain notes.
+
 ---
 
 ## Test it

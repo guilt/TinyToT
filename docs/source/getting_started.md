@@ -131,7 +131,7 @@ flowchart TD
     CG --> T["9 · Tree of Thoughts"]
 ```
 
-See [Core Concepts](../guides/concepts.md) for why each stage exists and
+See [Core Concepts](guides/concepts.md) for why each stage exists and
 [How-To: Ingesting Corpora](how_to/08_ingesting_corpora.md) for how to feed
 new data into the knowledge and codegen stages.
 
@@ -139,7 +139,7 @@ new data into the knowledge and codegen stages.
 
 | I want to... | Guide |
 |---|---|
-| Understand the architecture | [Core Concepts](../guides/concepts.md) |
+| Understand the architecture | [Core Concepts](guides/concepts.md) |
 | Add facts / domain knowledge | [How-To: Knowledge Base](how_to/01_knowledge_base.md) |
 | Add arithmetic / logic | [How-To: Compute Engine](how_to/02_compute_engine.md) |
 | Add reasoning chains | [How-To: Reasoning Chains](how_to/03_reasoning_chains.md) |
@@ -148,3 +148,59 @@ new data into the knowledge and codegen stages.
 | Ingest datasets | [How-To: Ingesting Corpora](how_to/08_ingesting_corpora.md) |
 | Measure performance | [How-To: Benchmarking](how_to/07_benchmarking.md) |
 | Extend TinyToT | [How-To: Extending](how_to/09_extending.md) |
+
+## Termux / Android
+
+TinyToT runs on Android/Termux (including inside proot). A few packages have no
+PyPI wheels for Termux's `android_30_arm64_v8a` platform tag, so pip falls back
+to source builds. The repository ships the tooling needed to make that work:
+
+### Reuse an existing venv with pipenv and make
+
+```bash
+# One-time: create a venv that shares the (already-provisioned) system packages
+python3 -m venv --system-site-packages .venv
+
+# Copy the local override template and set:
+#   PYTHON_VERSION ?= 3.13
+#   export PIPENV_VENV_IN_PROJECT = 1
+cp Makefile.user.template Makefile.user   # then edit as above
+
+make run          # starts the server on :11434
+make docs         # regenerates API docs + builds HTML
+make tests        # full pytest suite
+make precommit    # ruff + pytest + data-quality + benchmark guards
+```
+
+`pipenv run` never installs anything, so the daily targets stay fast. Only
+`make install` syncs the full `Pipfile`.
+
+### Native wheels that need a manual build
+
+`pydantic-core` and `rpds-py` are Rust crates with no `android_30_arm64_v8a`
+wheel; a source build through pip fails because build-isolation tries to
+compile `maturin` first. Build them once with the cargo-installed maturin and
+drop the wheels into `~/WS/Wheels`:
+
+```bash
+cargo install maturin --locked
+cd <pydantic-core checkout> && ./scripts/build-android.sh   # → ~/WS/Wheels/
+python3 -m pip install ~/WS/Wheels/pydantic_core-*.whl ~/WS/Wheels/rpds_py-*.whl
+```
+
+`Pillow` should be installed from the Termux package repository (the PyPI
+source build links glibc's `libc.so.6`, which bionic cannot load):
+
+```bash
+pkg install python-pillow
+```
+
+### Go toolchain (codegen execution tests)
+
+Termux's `golang` package ships a trimmed `go` binary. Under proot it needs
+`GOROOT` exported and `-e` as the first argument; the detection-based wrapper
+in `~/WS/DotFiles/bin/go` applies only when the plain invocation fails:
+
+```bash
+cp ~/WS/DotFiles/bin/go $PREFIX/bin/go   # re-apply after `pkg upgrade golang`
+```
