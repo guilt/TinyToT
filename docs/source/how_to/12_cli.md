@@ -13,11 +13,16 @@ tinytot [-p PROMPT] [--host HOST] [--port PORT]
 
 | Flag | Description |
 |---|---|
-| *(no flags)* | Start the HTTP server on port 11434 |
+| *(no flags)* | Start the HTTP server on `127.0.0.1:11434` |
 | `-p PROMPT` | Run a single prompt, print the response, exit |
 | `--prompt PROMPT` | Same as `-p` |
 | `--port PORT` | Override server port (default: 11434) |
-| `--host HOST` | Override server host (default: 0.0.0.0) |
+| `--host HOST` | Override server host (default: `TINYTOT_HOST_ADDR` or 127.0.0.1) |
+
+> **Security:** The server binds to loopback by default. If you pass a
+> non-loopback `--host` (or set `TINYTOT_HOST_ADDR` to a non-loopback
+> address), you must also set `TINYTOT_API_TOKEN`, otherwise the server refuses
+> to start. See [Security and Hardening](13_security.md).
 
 ---
 
@@ -72,14 +77,21 @@ done
 ## Starting the server
 
 ```bash
-# Default (port 11434, all interfaces)
+# Default (port 11434, loopback only)
 tinytot
 
 # Custom port
 tinytot --port 8080
 
-# Localhost only
+# Explicit loopback with a custom port
 tinytot --host 127.0.0.1 --port 8080
+
+# Expose on all interfaces (requires a token)
+export TINYTOT_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+tinytot --host 0.0.0.0 --port 11434
+
+# Or set the default bind address for every invocation
+TINYTOT_HOST_ADDR=0.0.0.0 tinytot --port 11434
 
 # As a variant
 TINYTOT_DATA_DIR=~/nanotot-bird tinytot --port 11435

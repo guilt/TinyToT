@@ -26,6 +26,7 @@ import importlib
 import inspect
 import os
 import pkgutil
+import re
 import sys
 from enum import EnumMeta
 from functools import lru_cache
@@ -39,6 +40,12 @@ from typing import Dict, List, Optional, Tuple
 _REPO_ROOT = Path.cwd()
 _CONF_PY = _REPO_ROOT / "docs" / "source" / "conf.py"
 _API_DIR = _REPO_ROOT / "docs" / "source" / "api"
+
+
+def _writeDoc(path: Path, text: str) -> None:
+    """Write docs with LF endings on every platform for reproducible diffs."""
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
 
 
 def _parseRootPackage() -> str:
@@ -168,7 +175,7 @@ def formatDocstring(docstring: str) -> str:
     if not docstring:
         return ""
 
-    lines = docstring.strip().split("\n")
+    lines = inspect.cleandoc(docstring).split("\n")
     formatted = []
     in_code_block = False
 
@@ -282,6 +289,8 @@ def _signatureText(func) -> str:
             portable = _portableRepr(param.default)
             if portable != orig:
                 text = text.replace(orig, portable)
+    text = re.sub(r"Union\[([^,\[\]]+), (?:types\.)?NoneType\]", r"Optional[\1]", text)
+    text = text.replace("pathlib._local.Path", "pathlib.Path")
     return text
 
 
@@ -337,7 +346,7 @@ def generateClassDoc(cls, module_name: str, output_file: Path) -> None:
             if method.__doc__:
                 doc += formatDocstring(method.__doc__) + "\n\n"
 
-    output_file.write_text(doc.rstrip("\n") + "\n", encoding="utf-8")
+    _writeDoc(output_file, doc.rstrip("\n") + "\n")
     print(f"  Generated: {output_file.name}")
 
 
@@ -349,7 +358,7 @@ def generateEnumDoc(cls, module_name: str, output_file: Path) -> None:
     for member in cls:
         doc += f"- **`{member.name}`**: `{_portableRepr(member.value)}`\n"
     doc += "\n"
-    output_file.write_text(doc.rstrip("\n") + "\n", encoding="utf-8")
+    _writeDoc(output_file, doc.rstrip("\n") + "\n")
     print(f"  Generated: {output_file.name}")
 
 
@@ -413,7 +422,7 @@ def discoverAndDocument() -> Dict[str, List[Tuple[str, str]]]:
             else:
                 content = f"# `{name}`\n\n**Module**: `{modname}`\n\n"
                 content += generateFunctionDoc(obj, modname)
-                out.write_text(content.rstrip("\n") + "\n", encoding="utf-8")
+                _writeDoc(out, content.rstrip("\n") + "\n")
                 print(f"  Generated: {out.name}")
 
             module_entries.append((name, filename))
@@ -448,7 +457,13 @@ def generateIndex(index: Dict[str, List[Tuple[str, str]]]) -> None:
             lines.append(f"- [{sym_name}]({filename})")
         lines.append("")
 
-    (_API_DIR / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    doc_names = sorted({Path(filename).stem for entries in index.values() for _, filename in entries})
+    if doc_names:
+        lines.extend(["```{toctree}", ":hidden:", ""])
+        lines.extend(doc_names)
+        lines.extend(["```", ""])
+
+    _writeDoc(_API_DIR / "README.md", "\n".join(lines).rstrip("\n") + "\n")
     print("  Generated: README.md (index)")
 
 

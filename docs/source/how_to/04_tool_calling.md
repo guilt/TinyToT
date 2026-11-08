@@ -106,6 +106,27 @@ curl http://localhost:11434/api/chat \
 - params: {"location": "extract_topic"}
 ```
 
+## Tool safety
+
+Tools are reachable through authenticated endpoints (`/api/agent` and
+`/api/agent/tool`). From 0.6.0 the dangerous ones are opt-in:
+
+| Tool | Default | Control |
+|---|---|---|
+| `shell_run` | **Disabled** | `TINYTOT_ENABLE_SHELL=1`, then `TINYTOT_SHELL_ALLOWLIST` |
+| `file_explore` | Full filesystem | `TINYTOT_FILE_ROOT=/allowed/dir` |
+| `web_fetch`, remote `document_extract` | Public URLs only | `TINYTOT_ALLOW_PRIVATE_URLS=1` |
+| `web_search` | Enabled | — |
+
+`shell_run` executes an argv list with `shell=False` and a deny-by-default
+executable allowlist; it never interprets `;`, `|`, `>`, or `$(...)`. When
+enabled, the default allowlist includes `python`, `git`, `pytest`, `ruff`, and
+basic read-only utilities. Because interpreters are allowlisted, enabling the
+shell tool still grants code execution to authenticated callers — the API token
+is the boundary.
+
+See [Security and Hardening](13_security.md) for the complete threat model.
+
 ## Next Steps
 
 - **[Hermes Bridge](05_hermes_bridge.md)** — organic knowledge from agent sessions

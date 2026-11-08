@@ -4,6 +4,51 @@ All notable changes to TinyToT are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - 2026
+
+### Security
+- **Closed GHSA-2f6r-9rrh-wvq9 — unauthenticated remote code execution.**
+  - The server binds to `127.0.0.1` by default (`TINYTOT_HOST_ADDR` / `--host`);
+    non-loopback binds require `TINYTOT_API_TOKEN`.
+  - Bearer-token authentication on `/api/agent`, `/api/agent/tool`,
+    `/api/agent/learn`, `/v1/chat/completions`, `/api/reload`, and `/api/quit`;
+    constant-time comparison and tokens are never logged.
+  - `shell_run` is disabled by default (`TINYTOT_ENABLE_SHELL=1` to enable);
+    commands execute as an argv list with `shell=False` against a
+    deny-by-default executable allowlist (`TINYTOT_SHELL_ALLOWLIST`) instead of
+    a blocklist.
+  - `file_explore` can be confined with `TINYTOT_FILE_ROOT` (symlink-aware).
+  - `web_fetch` and remote `document_extract` block loopback, private,
+    link-local, and reserved targets unless `TINYTOT_ALLOW_PRIVATE_URLS=1`.
+- Configurable request-body limit, `TINYTOT_MAX_REQUEST_BYTES` (default 32 MiB,
+  `0` disables), enforced for fixed-length and chunked bodies with `413`
+  responses.
+- Security event logging (`auth_failed`, `tool_denied`, `request_too_large`,
+  `startup_refused`) on the `tinytot.security` logger; `TINYTOT_LOG_LEVEL`
+  controls verbosity.
+
+### Added
+- `TINYTOT_HOST_ADDR` for setting the default bind address.
+- Security and Hardening guide, plus updated CLI, tool-calling, getting-started,
+  README, and user-guide documentation.
+- Regression tests for authentication, request limits, shell gating, SSRF, file
+  root confinement, security logging, and host configuration.
+
+### Changed
+- The API docs generator emits a hidden toctree so the Sphinx build is
+  warning-free.
+- Benchmarks explicitly opt into shell execution for their trusted local tasks.
+- Benchmark documentation now reflects current scores (novel reasoning 17/18,
+  agent tools 11/11).
+
+### Verified
+- Full test suite green under Python 3.8 (696 passed, 7 skipped).
+- `make precommit` passes all hooks (ruff, format, mypy, pytest, benchmark
+  regression, data quality).
+- `tinytot-bench all` completes; the core regression suite is at or above
+  baseline.
+- `make docs` builds with no warnings.
+
 ## [0.5.0] - 2026
 
 ### Added

@@ -170,6 +170,41 @@ class TestWebTool:
 
         assert "error" in result.lower() or "web_fetch" in result
 
+    def test_blocks_loopback_literal(self):
+        result = WebTool().run(url="http://127.0.0.1:11434/api/agent/tool")
+        assert "refusing" in result.lower()
+
+    def test_blocks_localhost_name(self):
+        result = WebTool().run(url="http://localhost:11434/")
+        assert "refusing" in result.lower()
+
+    def test_blocks_private_ip_literal(self):
+        result = WebTool().run(url="http://169.254.169.254/latest/meta-data/")
+        assert "refusing" in result.lower()
+
+    def test_blocks_non_http_scheme(self):
+        result = WebTool().run(url="file:///etc/passwd")
+        assert "unsupported url scheme" in result.lower()
+
+    def test_blocks_embedded_credentials(self):
+        result = WebTool().run(url="http://user:pass@example.com/")
+        assert "credentials" in result.lower()
+
+    def test_private_urls_can_be_opted_in(self, monkeypatch):
+        monkeypatch.setenv("TINYTOT_ALLOW_PRIVATE_URLS", "1")
+        with patch("httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_resp = MagicMock()
+            mock_resp.text = "internal"
+            mock_resp.headers = {"content-type": "text/plain"}
+            mock_resp.raise_for_status = MagicMock()
+            mock_client.get.return_value = mock_resp
+            mock_client_cls.return_value = mock_client
+            result = WebTool().run(url="http://127.0.0.1:8080/")
+        assert "internal" in result
+
 
 # ---------------------------------------------------------------------------
 # SearchTool
@@ -253,6 +288,10 @@ class TestDocumentTool:
     def test_missing_file_returns_error(self):
         result = DocumentTool().run(source="/nonexistent/path/file.txt")
         assert "not found" in result.lower() or "error" in result.lower()
+
+    def test_blocks_internal_remote_source(self):
+        result = DocumentTool().run(source="http://169.254.169.254/latest/meta-data/")
+        assert "refusing" in result.lower()
 
     def test_extract_pdf_calls_pypdf(self, tmp_path):
         f = tmp_path / "doc.pdf"
@@ -559,6 +598,24 @@ class TestFileTool:
         result = FileTool().run(path="/no/such/directory_xyz", operation="list")
         assert "not found" in result.lower() or "error" in result.lower()
 
+    def test_root_confinement_blocks_escape(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        secret = tmp_path / "secret.txt"
+        secret.write_text("nope")
+        monkeypatch.setenv("TINYTOT_FILE_ROOT", str(root))
+        result = FileTool().run(path=str(secret), operation="read")
+        assert "escapes configured root" in result.lower()
+
+    def test_root_confinement_allows_inside(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        f = root / "ok.txt"
+        f.write_text("inside")
+        monkeypatch.setenv("TINYTOT_FILE_ROOT", str(root))
+        result = FileTool().run(path=str(f), operation="read")
+        assert "inside" in result
+
     def test_search_requires_arg(self, tmp_path):
         result = FileTool().run(path=str(tmp_path), operation="search", arg="")
         assert "search requires" in result.lower()
@@ -575,17 +632,21 @@ class TestFileTool:
 
 
 class TestShellTool:
+    @pytest.fixture(autouse=True)
+    def _enable_shell(self, monkeypatch):
+        monkeypatch.setenv("TINYTOT_ENABLE_SHELL", "1")
+
     def test_simple_echo(self):
         result = ShellTool().run(command="echo hello_tinytot")
         assert "hello_tinytot" in result
         assert "exit_code: 0" in result
 
     def test_failing_command_returns_nonzero_exit(self):
-        result = ShellTool().run(command="false")
-        assert "exit_code: 1" in result or "exit_code: " in result
+        result = ShellTool().run(command='python -c "raise SystemExit(1)"')
+        assert "exit_code: 1" in result
 
     def test_stderr_captured(self):
-        result = ShellTool().run(command="echo error_msg >&2")
+        result = ShellTool().run(command="python -c \"import sys; sys.stderr.write('error_msg')\"")
         assert "error_msg" in result
 
     def test_timeout_returns_error(self):
@@ -594,17 +655,36 @@ class TestShellTool:
 
     def test_blocked_destructive_command(self):
         result = ShellTool().run(command="rm -rf /")
-        # Either we block it ourselves or the OS rejects it — either way no clean success
-        assert "blocked" in result.lower() or "exit_code: 1" in result or "exit_code: -1" in result
+        assert "allowlisted" in result.lower()
+
+    def test_shell_injection_is_not_executed(self):
+        result = ShellTool().run(command="sh -c id")
+        assert "allowlisted" in result.lower() or "not found" in result.lower()
+
+    def test_absolute_path_rejected(self):
+        result = ShellTool().run(command="/usr/bin/python -c 'print(1)'")
+        assert "bare executable name" in result.lower()
 
     def test_cwd_parameter(self, tmp_path):
         result = ShellTool().run(command='python -c "import os; print(os.getcwd())"', cwd=str(tmp_path))
         assert str(tmp_path) in result
 
     def test_timeout_capped_at_120(self):
-        # Should not actually hang — just verify it accepts the param
         result = ShellTool().run(command="echo ok", timeout="9999")
         assert "ok" in result
+
+
+def test_shell_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("TINYTOT_ENABLE_SHELL", raising=False)
+    result = ShellTool().run(command="echo hello")
+    assert "disabled" in result.lower()
+
+
+def test_shell_allowlist_is_configurable(monkeypatch):
+    monkeypatch.setenv("TINYTOT_ENABLE_SHELL", "1")
+    monkeypatch.setenv("TINYTOT_SHELL_ALLOWLIST", "git")
+    result = ShellTool().run(command='python -c "print(1)"')
+    assert "not allowlisted" in result.lower()
 
 
 # ---------------------------------------------------------------------------

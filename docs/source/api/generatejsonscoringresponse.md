@@ -5,7 +5,7 @@
 ## `generateJsonScoringResponse`
 
 ```python
-generateJsonScoringResponse(prompt: str, knowledgeDir: pathlib._local.Path = Path('tinytot/_data/knowledge')) -> str
+generateJsonScoringResponse(prompt: str, knowledgeDir: pathlib.Path = Path('tinytot/_data/knowledge')) -> str
 ```
 
 Score the response embedded in a scoring prompt and return a JSON string.

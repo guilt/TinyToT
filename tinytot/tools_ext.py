@@ -22,10 +22,13 @@ AudioTool      Analyse an audio file: duration, sample rate, channel count, spee
 from __future__ import annotations
 
 import csv
+import ipaddress
 import json
 import logging
 import os
 import re
+import shlex
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -68,6 +71,84 @@ __all__ = [
 # ---------------------------------------------------------------------------
 _HTTP_TIMEOUT = 15.0
 _SHELL_TIMEOUT = 30
+SHELL_ENABLE_ENV = "TINYTOT_ENABLE_SHELL"
+SHELL_ALLOWLIST_ENV = "TINYTOT_SHELL_ALLOWLIST"
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_DEFAULT_SHELL_ALLOWLIST = frozenset(
+    {
+        "python",
+        "python3",
+        "py",
+        "pip",
+        "pip3",
+        "pytest",
+        "ruff",
+        "git",
+        "echo",
+        "ls",
+        "cat",
+        "pwd",
+        "find",
+        "grep",
+        "rg",
+        "wc",
+        "head",
+        "tail",
+        "date",
+    }
+)
+ALLOW_PRIVATE_URLS_ENV = "TINYTOT_ALLOW_PRIVATE_URLS"
+FILE_ROOT_ENV = "TINYTOT_FILE_ROOT"
+_PRIVATE_HOSTNAMES = frozenset({"localhost", "localhost.localdomain", "metadata.google.internal"})
+
+
+def _validate_fetch_url(url: str) -> Optional[str]:
+    """Return an error string when *url* points at an internal/unsafe target."""
+    if os.getenv(ALLOW_PRIVATE_URLS_ENV, "").strip().lower() in _TRUE_VALUES:
+        return None
+    try:
+        parsed = urlparse(url)
+        scheme = parsed.scheme.lower()
+        host = (parsed.hostname or "").strip().lower().rstrip(".")
+        has_credentials = bool(parsed.username or parsed.password)
+    except ValueError as exc:
+        return f"invalid URL: {exc}"
+    if scheme not in ("http", "https"):
+        return f"unsupported URL scheme: {scheme!r}"
+    if not host:
+        return "URL has no host"
+    if has_credentials:
+        return "URLs with embedded credentials are not allowed"
+    if host in _PRIVATE_HOSTNAMES or host.endswith(".localhost"):
+        return "refusing to fetch a loopback/internal host"
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return None
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+        return "refusing to fetch a private/internal address"
+    return None
+
+
+def _resolve_file_root(path: Path) -> Tuple[Path, Optional[str]]:
+    """Resolve *path* and, when TINYTOT_FILE_ROOT is set, enforce containment."""
+    root = os.getenv(FILE_ROOT_ENV, "").strip()
+    try:
+        resolved = path.expanduser().resolve()
+    except (OSError, RuntimeError):
+        resolved = path.expanduser()
+    if not root:
+        return resolved, None
+    try:
+        root_path = Path(root).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return resolved, f"invalid configured root ({FILE_ROOT_ENV})"
+    try:
+        resolved.relative_to(root_path)
+    except ValueError:
+        return resolved, f"path escapes configured root ({FILE_ROOT_ENV})"
+    return resolved, None
+
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -162,6 +243,9 @@ class WebTool(Tool):
 
     def run(self, url: str, max_chars: str = "4000") -> str:
         limit = int(max_chars) if str(max_chars).isdigit() else 4000
+        url_error = _validate_fetch_url(url)
+        if url_error:
+            return f"[web_fetch] {url_error}"
         try:
             import httpx
             from bs4 import BeautifulSoup
@@ -265,6 +349,9 @@ class DocumentTool(Tool):
 
         # Fetch remote documents into a temp file
         if src.startswith("http://") or src.startswith("https://"):
+            url_error = _validate_fetch_url(src)
+            if url_error:
+                return f"[document_extract] {url_error}"
             try:
                 import httpx
 
@@ -738,7 +825,9 @@ class FileTool(Tool):
 
     def run(self, path: str, operation: str = "list", arg: str = "", max_chars: str = "6000") -> str:
         limit = int(max_chars) if str(max_chars).isdigit() else 6000
-        p = Path(path).expanduser()
+        p, root_error = _resolve_file_root(Path(path))
+        if root_error:
+            return f"[file_explore] {root_error}"
         op = operation.lower().strip()
         if op == "list":
             return self._list(p)
@@ -792,7 +881,8 @@ class FileTool(Tool):
     def _search(self, p: Path, query: str, limit: int) -> str:
         if not query:
             return "[file_explore] search requires a query arg"
-        p = p if p.exists() else Path(".")
+        if not p.exists():
+            return f"(no matches for {query!r})"
         pattern = re.compile(re.escape(query), re.IGNORECASE)
         results = []
         target = [p] if p.is_file() else sorted(p.rglob("*"))
@@ -847,35 +937,65 @@ class FileTool(Tool):
 
 
 class ShellTool(Tool):
-    """Run a shell command and return stdout + stderr."""
+    """Run an allowlisted command and return stdout + stderr."""
 
     name = "shell_run"
     description = (
-        "Run a shell command and return its output (stdout + stderr). "
-        "Use for git, build tools, data processing scripts, or any CLI operation. "
-        "Commands run with a 30s timeout."
+        "Run an allowlisted command and return its output (stdout + stderr). "
+        "Disabled unless TINYTOT_ENABLE_SHELL=1. Use for git, build tools, "
+        "data processing scripts, or any CLI operation. Commands run with a 30s timeout."
     )
     params = [
-        ("command", "Shell command to run", True),
+        ("command", "Command to run (bare allowlisted executable only)", True),
         ("cwd", "Working directory (default: current)", False),
         ("timeout", "Timeout in seconds (default: 30)", False),
     ]
 
-    _BLOCKED = re.compile(
-        r"\b(rm\s+-rf\s+/|dd\s+if=|mkfs|fdisk|:(){ :|:& };:)\b",
-        re.IGNORECASE,
-    )
+    @staticmethod
+    def _enabled() -> bool:
+        return os.getenv(SHELL_ENABLE_ENV, "").strip().lower() in _TRUE_VALUES
+
+    @staticmethod
+    def _allowlist() -> frozenset[str]:
+        raw = os.getenv(SHELL_ALLOWLIST_ENV, "").strip()
+        if not raw:
+            return _DEFAULT_SHELL_ALLOWLIST
+        return frozenset(part.strip().lower() for part in re.split(r"[,\s]+", raw) if part.strip())
 
     def run(self, command: str, cwd: str = "", timeout: str = "30") -> str:
-        if self._BLOCKED.search(command):
-            return "[shell_run] command blocked for safety"
+        if not self._enabled():
+            return f"[shell_run] disabled — set {SHELL_ENABLE_ENV}=1 to enable"
+        try:
+            argv = shlex.split(command, posix=True)
+        except ValueError as exc:
+            return f"[shell_run] could not parse command: {exc}"
+        if not argv:
+            return "[shell_run] empty command"
+
+        binary = argv[0]
+        if os.sep in binary or (os.altsep and os.altsep in binary):
+            return "[shell_run] command must be a bare executable name"
+        if binary.lower() == "echo":
+            if "echo" not in self._allowlist():
+                return "[shell_run] command not allowlisted: 'echo'"
+            return f"exit_code: 0\nstdout:\n{' '.join(argv[1:]) or '(empty)'}\nstderr:\n(empty)"
+
+        resolved = shutil.which(binary)
+        if resolved is None:
+            return f"[shell_run] executable not found: {binary!r}"
+        exe_name = Path(resolved).name.lower()
+        if exe_name.endswith(".exe"):
+            exe_name = exe_name[:-4]
+        if exe_name not in self._allowlist():
+            return f"[shell_run] command not allowlisted: {exe_name!r}"
+
         secs = int(timeout) if str(timeout).isdigit() else _SHELL_TIMEOUT
         secs = min(secs, 120)
         work_dir = cwd.strip() or None
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                [resolved, *argv[1:]],
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=secs,

@@ -1,6 +1,6 @@
 # ShellTool
 
-Run a shell command and return stdout + stderr.
+Run an allowlisted command and return stdout + stderr.
 
 **Module**: `tinytot.tools_ext`
 

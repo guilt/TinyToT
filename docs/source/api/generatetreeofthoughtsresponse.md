@@ -5,7 +5,7 @@
 ## `generateTreeOfThoughtsResponse`
 
 ```python
-generateTreeOfThoughtsResponse(prompt: str, categoryDir: pathlib._local.Path = Path('tinytot/_data/categories'), knowledgeDir: pathlib._local.Path = Path('tinytot/_data/knowledge'), skip_knowledge: bool = False, force_category: Optional[str] = None, direct_response: bool = False) -> str
+generateTreeOfThoughtsResponse(prompt: str, categoryDir: pathlib.Path = Path('tinytot/_data/categories'), knowledgeDir: pathlib.Path = Path('tinytot/_data/knowledge'), skip_knowledge: bool = False, force_category: Optional[str] = None, direct_response: bool = False) -> str
 ```
 
 Run Tree of Thoughts, grounding the best chain in knowledge when available.

@@ -91,7 +91,8 @@ async def test_run_unknown_tool_returns_error_in_result(client):
 
 
 @pytest.mark.asyncio
-async def test_run_shell_tool_echo(client):
+async def test_run_shell_tool_echo(client, monkeypatch):
+    monkeypatch.setenv("TINYTOT_ENABLE_SHELL", "1")
     r = await client.post(
         "/api/agent/tool",
         json={
@@ -101,6 +102,20 @@ async def test_run_shell_tool_echo(client):
     )
     assert r.status_code == 200
     assert "tinytot_test_marker" in r.json()["result"]
+
+
+@pytest.mark.asyncio
+async def test_run_shell_tool_disabled_by_default(client, monkeypatch):
+    monkeypatch.delenv("TINYTOT_ENABLE_SHELL", raising=False)
+    r = await client.post(
+        "/api/agent/tool",
+        json={
+            "name": "shell_run",
+            "params": {"command": "echo tinytot_test_marker"},
+        },
+    )
+    assert r.status_code == 200
+    assert "disabled" in r.json()["result"].lower()
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ from tinytot._secrets_shim import ensure_secrets  # isort: skip
 
 ensure_secrets()
 
+import hmac
 import json
 import logging
 import os
@@ -22,7 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -36,18 +37,162 @@ from .tools import detectToolUsage, matchToolFromAvailable
 from .tools_ext import registry as tool_registry
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+security_logger = logging.getLogger("tinytot.security")
+_LOG_LEVEL = os.getenv("TINYTOT_LOG_LEVEL", "INFO").strip().upper()
+logging.basicConfig(level=getattr(logging, _LOG_LEVEL, logging.INFO))
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_HOST: str = "0.0.0.0"
+HOST_ADDR_ENV: str = "TINYTOT_HOST_ADDR"
+DEFAULT_HOST: str = "127.0.0.1"
 DEFAULT_PORT: int = int(os.getenv("PORT", "11434"))
 STREAM_MEDIA_TYPE: str = "application/x-ndjson"
 TOOL_CALL_ID_MODULO: int = 10000
+API_TOKEN_ENV: str = "TINYTOT_API_TOKEN"
+MAX_REQUEST_BYTES_ENV: str = "TINYTOT_MAX_REQUEST_BYTES"
+DEFAULT_MAX_REQUEST_BYTES: int = 32 * 1024 * 1024
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient"})
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_DENIED_MARKERS = ("disabled", "not allowlisted", "not permitted", "refusing", "escapes configured root")
 
 app = FastAPI(title="TinyToT Server", description="Tree of Thoughts Inference Engine")
+
+
+def _configured_token() -> str:
+    return os.getenv(API_TOKEN_ENV, "").strip()
+
+
+def _configured_host() -> str:
+    return os.getenv(HOST_ADDR_ENV, "").strip() or DEFAULT_HOST
+
+
+def _is_loopback(host: str) -> bool:
+    return host in _LOOPBACK_HOSTS
+
+
+def _max_request_bytes() -> int:
+    raw = os.getenv(MAX_REQUEST_BYTES_ENV, "").strip()
+    if not raw:
+        return DEFAULT_MAX_REQUEST_BYTES
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        security_logger.warning("invalid %s=%r; using default", MAX_REQUEST_BYTES_ENV, raw)
+        return DEFAULT_MAX_REQUEST_BYTES
+
+
+def _client_host(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _log_tool_result(request: Request, name: str, result: str) -> None:
+    host = _client_host(request)
+    lowered = result.lower()
+    if any(marker in lowered for marker in _DENIED_MARKERS):
+        security_logger.warning("tool_denied client=%s tool=%s", host, name)
+    else:
+        logger.info("tool_run client=%s tool=%s", host, name)
+
+
+class RequestSizeLimitMiddleware:
+    """Reject bodies above TINYTOT_MAX_REQUEST_BYTES (0 disables the limit)."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        limit = _max_request_bytes()
+        if limit <= 0:
+            await self.app(scope, receive, send)
+            return
+        for name, value in scope.get("headers", []):
+            if name == b"content-length":
+                try:
+                    too_large = int(value) > limit
+                except (TypeError, ValueError):
+                    too_large = False
+                if too_large:
+                    await self._reject(scope, send, limit)
+                    return
+                break
+
+        body = bytearray()
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            chunk = message.get("body", b"")
+            if chunk:
+                body.extend(chunk)
+                if len(body) > limit:
+                    await self._reject(scope, send, limit)
+                    return
+            if not message.get("more_body", False):
+                break
+
+        replayed = False
+
+        async def replay_receive():
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                return {"type": "http.request", "body": bytes(body), "more_body": False}
+            return {"type": "http.disconnect"}
+
+        await self.app(scope, replay_receive, send)
+
+    @staticmethod
+    async def _reject(scope, send, limit: int) -> None:
+        security_logger.warning(
+            "request_too_large client=%s path=%s limit=%d",
+            scope["client"][0] if scope.get("client") else "unknown",
+            scope.get("path", ""),
+            limit,
+        )
+        payload = json.dumps({"detail": f"request body too large (max {limit} bytes)"}).encode("utf-8")
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 413,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(payload)).encode("ascii")),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": payload})
+
+
+app.add_middleware(RequestSizeLimitMiddleware)
+
+
+async def require_auth(request: Request) -> None:
+    """Enforce a bearer token when configured; otherwise allow loopback only."""
+    token = _configured_token()
+    if token:
+        scheme, _, supplied = request.headers.get("authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not hmac.compare_digest(supplied.strip(), token):
+            security_logger.warning("auth_failed client=%s path=%s", _client_host(request), request.url.path)
+            raise HTTPException(
+                status_code=401,
+                detail="invalid or missing bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return
+    host = _client_host(request)
+    if not _is_loopback(host):
+        security_logger.warning("auth_failed client=%s path=%s reason=no-token", host, request.url.path)
+        raise HTTPException(
+            status_code=401,
+            detail=f"authentication required: set {API_TOKEN_ENV}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 # Mount web UI
 _web_dir = Path(__file__).parent / "_web" / "static"
@@ -347,8 +492,8 @@ async def summarize(request: SummarizeRequest):
 # ---------------------------------------------------------------------------
 
 
-@app.post("/api/agent")
-async def agent(request: AgentRequest):
+@app.post("/api/agent", dependencies=[Depends(require_auth)])
+async def agent(request: AgentRequest, http_request: Request):
     """Agentic plan-execute endpoint.
 
     Runs the full PlanExecuteLoop: plan steps via ToT, execute via tools,
@@ -366,6 +511,7 @@ async def agent(request: AgentRequest):
         if request.tool:
             params = request.tool_params or {}
             result = tool_registry.run(request.tool, **params)
+            _log_tool_result(http_request, request.tool, result)
             return {"result": result, "tool": request.tool, "done": True}
 
         result = agentResponse(request.prompt, session_id=request.session_id or "")
@@ -381,8 +527,8 @@ async def list_tools():
     return {"tools": tool_registry.schemas()}
 
 
-@app.post("/api/agent/tool")
-async def run_tool(request: ToolRunRequest):
+@app.post("/api/agent/tool", dependencies=[Depends(require_auth)])
+async def run_tool(request: ToolRunRequest, http_request: Request):
     """Run a single tool by name with explicit parameters.
 
     Example::
@@ -393,13 +539,14 @@ async def run_tool(request: ToolRunRequest):
     """
     try:
         result = tool_registry.run(request.name, **request.params)
+        _log_tool_result(http_request, request.name, result)
         return {"result": result, "tool": request.name, "done": True}
     except Exception as e:
         logger.error("Tool error: %s\n%s", e, traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/api/agent/learn")
+@app.post("/api/agent/learn", dependencies=[Depends(require_auth)])
 async def learn(body: Dict[str, Any]):
     """Record a learning to the journal.
 
@@ -424,7 +571,7 @@ async def learn(body: Dict[str, Any]):
 # ---------------------------------------------------------------------------
 
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", dependencies=[Depends(require_auth)])
 async def openai_chat(request: ChatRequest):
     """OpenAI-compatible chat completions endpoint.
 
@@ -544,8 +691,8 @@ async def openai_models():
     }
 
 
-@app.post("/api/reload")
-@app.get("/api/reload")
+@app.post("/api/reload", dependencies=[Depends(require_auth)])
+@app.get("/api/reload", dependencies=[Depends(require_auth)])
 async def reload_data(knowledge_only: bool = False):
     """Hot-reload knowledge (and optionally all indexes) from disk without restarting.
 
@@ -587,8 +734,8 @@ async def reload_data(knowledge_only: bool = False):
     }
 
 
-@app.post("/api/quit")
-@app.get("/api/quit")
+@app.post("/api/quit", dependencies=[Depends(require_auth)])
+@app.get("/api/quit", dependencies=[Depends(require_auth)])
 async def quit_server():
     """Gracefully shut down the server."""
     import asyncio
@@ -639,9 +786,9 @@ def main():
     )
     parser.add_argument(
         "--host",
-        default=DEFAULT_HOST,
+        default=_configured_host(),
         metavar="HOST",
-        help=f"Server host (default: {DEFAULT_HOST})",
+        help=f"Server host (default: {_configured_host()}, env: {HOST_ADDR_ENV})",
     )
     parser.add_argument(
         "-v",
@@ -651,12 +798,29 @@ def main():
     )
     args = parser.parse_args()
 
+    if not args.prompt and not _configured_token() and not _is_loopback(args.host):
+        security_logger.warning("startup_refused host=%s reason=no-token", args.host)
+        print(
+            f"Refusing to bind to {args.host} without authentication. Set {API_TOKEN_ENV} or use --host 127.0.0.1.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     if args.prompt:
         from .inference import generateReasoningResponse
 
         print(generateReasoningResponse(args.prompt))
         sys.exit(0)
 
+    shell_enabled = os.getenv("TINYTOT_ENABLE_SHELL", "").strip().lower() in _TRUE_VALUES
+    logger.info(
+        "starting host=%s port=%s auth=%s shell=%s max_request_bytes=%d",
+        args.host,
+        args.port,
+        "token" if _configured_token() else "loopback-only",
+        "enabled" if shell_enabled else "disabled",
+        _max_request_bytes(),
+    )
     print(f"TinyToT v{__version__} — http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop.")
     signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(0))

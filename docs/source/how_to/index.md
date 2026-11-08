@@ -18,4 +18,5 @@ maxdepth: 1
 10_code_generation
 11_variants
 12_cli
+13_security
 ```

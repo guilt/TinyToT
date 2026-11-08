@@ -15,11 +15,16 @@ author = "TinyToT Contributors"
 copyright = f"{date.today().year}, {author}"
 
 try:
-    version = _pkg_version("tinytot")
+    from tinytot import __version__ as version  # noqa: E402
+
     release = version
-except PackageNotFoundError:
-    version = "dev"
-    release = "dev"
+except Exception:
+    try:
+        version = _pkg_version("tinytot")
+        release = version
+    except PackageNotFoundError:
+        version = "dev"
+        release = "dev"
 
 extensions = [
     "sphinx.ext.autodoc",

@@ -2112,6 +2112,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.cmd in {"all", "agent-tools", "terminal"}:
+        os.environ.setdefault("TINYTOT_ENABLE_SHELL", "1")
+
     if args.cmd == "gsm8k":
         if not args.source.exists():
             print(f"[gsm8k] source not found: {args.source}")

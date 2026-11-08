@@ -1,6 +1,6 @@
 # TinyToT
 
-**Tree of Thoughts Inference Server** — 100% benchmark accuracy on 7 suites,
+**Tree of Thoughts Inference Server** — near-perfect benchmark accuracy across 7 suites,
 zero parameters, no GPU, runs on a laptop CPU.
 
 ---
@@ -34,7 +34,7 @@ anyone has been building.
 | Summarization (11 domains) | **100% (11/11)** |
 | Code generation (7+ languages) | **98% (49/50)** |
 | Novel math (random seeds) | **100% (25/25)** |
-| Novel reasoning (held-out) | **100% (18/18)** |
+| Novel reasoning (held-out) | **94% (17/18)** |
 | Novel routing (unseen phrasings) | **100% (22/22)** |
 
 Run all benchmarks: `make bench`

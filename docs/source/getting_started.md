@@ -21,11 +21,16 @@ make install      # creates pipenv venv, installs all deps
 
 ```bash
 make run
-# INFO: Uvicorn running on http://0.0.0.0:11434
+# INFO: Uvicorn running on http://127.0.0.1:11434
 ```
 
-TinyToT starts on port 11434 — the same port as Ollama. Any Ollama-compatible
-client works immediately.
+TinyToT starts on port 11434 — the same port as Ollama — and binds to loopback
+by default. Any Ollama-compatible client on the same machine works immediately.
+
+> **Exposing the server:** remote access requires an explicit `--host` and a
+> bearer token (`TINYTOT_API_TOKEN`). See
+> [Security and Hardening](how_to/13_security.md) for the full deployment
+> checklist.
 
 ## Your first queries
 
@@ -110,6 +115,21 @@ make live-docs        live-reload docs server
 make build            build wheel
 ```
 
+## Security defaults
+
+TinyToT 0.6.0 and later are closed by default:
+
+- The server binds to `127.0.0.1` by default (`TINYTOT_HOST_ADDR` or `--host`);
+  a non-loopback bind requires `TINYTOT_API_TOKEN`.
+- `shell_run` is disabled unless `TINYTOT_ENABLE_SHELL=1`.
+- Request bodies are limited to 32 MiB (`TINYTOT_MAX_REQUEST_BYTES`).
+- `file_explore` can be confined with `TINYTOT_FILE_ROOT`.
+- `web_fetch` blocks private/loopback targets unless
+  `TINYTOT_ALLOW_PRIVATE_URLS=1`.
+
+See [Security and Hardening](how_to/13_security.md) for every variable,
+examples, and residual risks.
+
 ## How a query is answered
 
 Every prompt goes through this dispatch pipeline (first match wins):
@@ -145,6 +165,7 @@ new data into the knowledge and codegen stages.
 | Add reasoning chains | [How-To: Reasoning Chains](how_to/03_reasoning_chains.md) |
 | Add code templates | [How-To: Code Generation](how_to/10_code_generation.md) |
 | Connect external tools | [How-To: Tool Calling](how_to/04_tool_calling.md) |
+| Harden a deployment | [Security and Hardening](how_to/13_security.md) |
 | Ingest datasets | [How-To: Ingesting Corpora](how_to/08_ingesting_corpora.md) |
 | Measure performance | [How-To: Benchmarking](how_to/07_benchmarking.md) |
 | Extend TinyToT | [How-To: Extending](how_to/09_extending.md) |

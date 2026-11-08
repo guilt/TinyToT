@@ -196,7 +196,7 @@ class TestGo:
         with tempfile.NamedTemporaryFile(suffix=".go", delete=False, dir=TMPDIR, mode="w") as f:
             f.write(full)
             fname = f.name
-        out, _ = _run(["go", "run", fname])
+        out, _ = _run(["go", "run", fname], timeout=120)
         os.unlink(fname)
         return out
 

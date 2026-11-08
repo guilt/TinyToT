@@ -33,13 +33,13 @@ parameters — not 7B, not 70B.
 | Routing accuracy | **53/53 (100%)** | 15 domain categories |
 | Knowledge retrieval precision | **15/15 (100%)** | Direct factual Q&A |
 | TruthfulQA | **23/23 (100%)** | Known facts answered; unknown facts admitted honestly |
-| Novel reasoning (held-out) | **18/18 (100%)** | Paraphrased — no training-string match |
+| Novel reasoning (held-out) | **17/18 (94%)** | Paraphrased — no training-string match |
 | Novel routing (unseen phrasings) | **22/22 (100%)** | Router generalisation |
 | Novel math (random seeds) | **25/25 (100%)** | Anti-cheat: random numbers each run |
 | Code generation | **49/50 (98%)** | 7 languages, 648 templates |
 | Summarization | **11/11 (100%)** | Multi-domain extractive |
 | Terminal tasks | **7/7 (100%)** | Shell + file + data tools |
-| Agent tools | **10/10 (100%)** | File, data, shell, web, search, media |
+| Agent tools | **11/11 (100%)** | File, data, shell, web, search, media |
 | Real-world image analysis | **5/5 (100%)** | Pillow-based pixel + text analysis |
 | Real document extraction | **5/5 (100%)** | PDF, DOCX, CSV, Markdown |
 | Video/GIF analysis | **3/3 (100%)** | Duration, FPS, keyframes |
@@ -171,7 +171,7 @@ Two-stage: O(N) coarse TF-IDF scan → multi-head re-rank on top-20.
 ```bash
 # Quick start (end user)
 pip install tinytot
-tinytot                      # starts on port 11434
+tinytot                      # starts on 127.0.0.1:11434 (loopback only)
 
 # Development (from repo)
 make install
@@ -391,6 +391,46 @@ recursive JSON key extraction, and CSV→JSON conversion are in
 | `/api/agent/tool` | POST | Run a single tool by name |
 | `/api/agent/learn` | POST | Write to Hermes Learning Journal |
 | `/api/summarize` | POST | Extractive document summarization |
+
+Routes that invoke tools or mutate server state (`/api/agent`, `/api/agent/tool`,
+`/api/agent/learn`, `/v1/chat/completions`, `/api/reload`, `/api/quit`) require
+`Authorization: Bearer $TINYTOT_API_TOKEN` when a token is configured. Without a
+token, only loopback clients are accepted.
+
+---
+
+## Security
+
+TinyToT 0.6.0 is **closed by default**. It binds to loopback, refuses to expose
+itself without a token, disables shell execution, and caps request bodies.
+
+```bash
+# Expose on all interfaces with authentication
+export TINYTOT_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+tinytot --host 0.0.0.0
+
+# Curl with the token
+curl http://127.0.0.1:11434/api/agent/tool \
+  -H "Authorization: Bearer $TINYTOT_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"web_search","params":{"query":"Tree of Thoughts"}}'
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TINYTOT_HOST_ADDR` | `127.0.0.1` | Default bind address (`--host` overrides it). |
+| `TINYTOT_API_TOKEN` | unset | Require a bearer token on tool/administration routes; mandatory for non-loopback binds. |
+| `TINYTOT_MAX_REQUEST_BYTES` | 32 MiB | Maximum request body (`0` disables); sized for long contexts. |
+| `TINYTOT_ENABLE_SHELL` | unset | Enable `shell_run` (`1`/`true`/`yes`/`on`). |
+| `TINYTOT_SHELL_ALLOWLIST` | small fixed set | Executables `shell_run` may invoke (argv-only, no shell). |
+| `TINYTOT_FILE_ROOT` | unset | Confine `file_explore` to a directory. |
+| `TINYTOT_ALLOW_PRIVATE_URLS` | unset | Allow `web_fetch`/remote documents to reach private or loopback addresses. |
+| `TINYTOT_LOG_LEVEL` | `INFO` | Logging level; security events use the `tinytot.security` logger. |
+
+This closes [GHSA-2f6r-9rrh-wvq9](https://github.com/guilt/TinyToT/security/advisories/GHSA-2f6r-9rrh-wvq9)
+(unauthenticated RCE via `shell_run`). See
+[Security and Hardening](docs/source/how_to/13_security.md) for the threat model,
+deployment checklist, and residual risks.
 
 ---
 

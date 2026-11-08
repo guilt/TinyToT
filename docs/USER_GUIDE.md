@@ -48,7 +48,7 @@ prompt
 ```bash
 # Quick start (end user)
 pip install tinytot
-tinytot                       # starts on port 11434
+tinytot                       # starts on 127.0.0.1:11434 (loopback only)
 
 # Development (from repo)
 git clone <repo-url>
@@ -212,6 +212,29 @@ ctranslate2 via `pip install tinytot[translation]`), `DataTool`, `FileTool`,
 | `/api/agent/tools` | GET | List registered tools |
 | `/api/agent/learn` | POST | Write to Hermes Learning Journal |
 | `/api/summarize` | POST | Extractive summarization |
+
+---
+
+## Security
+
+From 0.6.0, TinyToT is closed by default: it binds to `127.0.0.1`, requires
+`TINYTOT_API_TOKEN` before binding to any other interface, disables `shell_run`,
+and limits request bodies to 32 MiB. Tool and administration routes require a
+bearer token when one is configured.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TINYTOT_HOST_ADDR` | `127.0.0.1` | Default bind address (`--host` overrides it). |
+| `TINYTOT_API_TOKEN` | unset | Bearer token for tool/administration routes; mandatory for non-loopback binds. |
+| `TINYTOT_MAX_REQUEST_BYTES` | 32 MiB | Request-body cap (`0` disables). |
+| `TINYTOT_ENABLE_SHELL` | unset | Enable `shell_run`. |
+| `TINYTOT_SHELL_ALLOWLIST` | small fixed set | Executables `shell_run` may invoke. |
+| `TINYTOT_FILE_ROOT` | unset | Confine `file_explore` to a directory. |
+| `TINYTOT_ALLOW_PRIVATE_URLS` | unset | Allow fetches to private/loopback addresses. |
+| `TINYTOT_LOG_LEVEL` | `INFO` | Logging level for `tinytot.security` events. |
+
+See [Security and Hardening](source/how_to/13_security.md) for the threat model,
+examples, and residual risks.
 
 ---
 

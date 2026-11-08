@@ -5,7 +5,7 @@
 ## `generateReasoningResponse`
 
 ```python
-generateReasoningResponse(prompt: str, categoryDir: pathlib._local.Path = Path('tinytot/_data/categories'), knowledgeDir: pathlib._local.Path = Path('tinytot/_data/knowledge'), session_id: str = '', history: Optional[list] = None) -> str
+generateReasoningResponse(prompt: str, categoryDir: pathlib.Path = Path('tinytot/_data/categories'), knowledgeDir: pathlib.Path = Path('tinytot/_data/knowledge'), session_id: str = '', history: Optional[list] = None) -> str
 ```
 
 Dispatch to the appropriate response generator based on prompt intent.
